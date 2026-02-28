@@ -2,7 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { DropResult } from '@hello-pangea/dnd';
 import { Outlet, useLocation, useNavigate } from '@tanstack/react-router';
 import { siDiscord, siGithub } from 'simple-icons';
-import { XIcon, PlusIcon, LayoutIcon, KanbanIcon } from '@phosphor-icons/react';
+import {
+  XIcon,
+  PlusIcon,
+  LayoutIcon,
+  KanbanIcon,
+  BrainIcon,
+} from '@phosphor-icons/react';
 import { SyncErrorProvider } from '@/shared/providers/SyncErrorProvider';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
 import { useUiPreferencesStore } from '@/shared/stores/useUiPreferencesStore';
@@ -156,6 +162,7 @@ export function SharedAppLayout() {
 
   // Navigation state for AppBar active indicators
   const isWorkspacesActive = location.pathname.startsWith('/workspaces');
+  const isBrainstormActive = location.pathname.startsWith('/brainstorm');
   const activeProjectId = location.pathname.startsWith('/projects/')
     ? location.pathname.split('/')[2]
     : null;
@@ -174,6 +181,10 @@ export function SharedAppLayout() {
 
   const handleWorkspacesClick = useCallback(() => {
     navigate(toWorkspaces());
+  }, [navigate]);
+
+  const handleBrainstormClick = useCallback(() => {
+    navigate({ to: '/brainstorm' });
   }, [navigate]);
 
   const handleProjectClick = useCallback(
@@ -300,6 +311,8 @@ export function SharedAppLayout() {
             onProjectsDragEnd={handleProjectsDragEnd}
             isSavingProjectOrder={isSavingProjectOrder}
             isWorkspacesActive={isWorkspacesActive}
+            onBrainstormClick={handleBrainstormClick}
+            isBrainstormActive={isBrainstormActive}
             activeProjectId={activeProjectId}
             isSignedIn={isSignedIn}
             isLoadingProjects={isLoading}
@@ -352,6 +365,19 @@ export function SharedAppLayout() {
             >
               <LayoutIcon className="h-4 w-4" />
               Workspaces
+            </button>
+
+            {/* Brainstorm link */}
+            <button
+              type="button"
+              onClick={() => {
+                navigate({ to: '/brainstorm' });
+                setIsDrawerOpen(false);
+              }}
+              className="flex items-center gap-2 px-4 py-3 text-sm text-normal hover:bg-secondary cursor-pointer"
+            >
+              <BrainIcon className="h-4 w-4" />
+              Brainstorm
             </button>
 
             {/* Divider */}

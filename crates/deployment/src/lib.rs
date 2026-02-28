@@ -15,6 +15,7 @@ use services::services::{
     analytics::AnalyticsService,
     approvals::Approvals,
     auth::AuthContext,
+    brainstorm::BrainstormService,
     config::{Config, ConfigError},
     container::{ContainerError, ContainerService},
     events::{EventError, EventService},
@@ -110,6 +111,8 @@ pub trait Deployment: Clone + Send + Sync + 'static {
     fn server_info(&self) -> &Arc<ServerInfo>;
 
     fn trusted_key_auth(&self) -> &TrustedKeyAuthRuntime;
+
+    fn brainstorm(&self) -> &BrainstormService;
 
     fn remote_client(&self) -> Result<RemoteClient, RemoteClientNotConfigured> {
         Err(RemoteClientNotConfigured)

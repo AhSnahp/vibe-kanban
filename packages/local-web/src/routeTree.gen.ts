@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as OnboardingSignInRouteImport } from './routes/onboarding_.sign-in'
 import { Route as AppWorkspacesRouteImport } from './routes/_app.workspaces'
 import { Route as AppMigrateRouteImport } from './routes/_app.migrate'
+import { Route as AppBrainstormRouteImport } from './routes/_app.brainstorm'
 import { Route as WorkspacesWorkspaceIdVscodeRouteImport } from './routes/workspaces.$workspaceId.vscode'
 import { Route as AppWorkspacesElectricTestRouteImport } from './routes/_app.workspaces_.electric-test'
 import { Route as AppWorkspacesCreateRouteImport } from './routes/_app.workspaces_.create'
@@ -53,6 +54,11 @@ const AppWorkspacesRoute = AppWorkspacesRouteImport.update({
 const AppMigrateRoute = AppMigrateRouteImport.update({
   id: '/migrate',
   path: '/migrate',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppBrainstormRoute = AppBrainstormRouteImport.update({
+  id: '/brainstorm',
+  path: '/brainstorm',
   getParentRoute: () => AppRoute,
 } as any)
 const WorkspacesWorkspaceIdVscodeRoute =
@@ -117,6 +123,7 @@ const AppProjectsProjectIdIssuesIssueIdWorkspacesCreateDraftIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/onboarding': typeof OnboardingRoute
+  '/brainstorm': typeof AppBrainstormRoute
   '/migrate': typeof AppMigrateRoute
   '/workspaces': typeof AppWorkspacesRoute
   '/onboarding/sign-in': typeof OnboardingSignInRoute
@@ -134,6 +141,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/onboarding': typeof OnboardingRoute
+  '/brainstorm': typeof AppBrainstormRoute
   '/migrate': typeof AppMigrateRoute
   '/workspaces': typeof AppWorkspacesRoute
   '/onboarding/sign-in': typeof OnboardingSignInRoute
@@ -153,6 +161,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/onboarding': typeof OnboardingRoute
+  '/_app/brainstorm': typeof AppBrainstormRoute
   '/_app/migrate': typeof AppMigrateRoute
   '/_app/workspaces': typeof AppWorkspacesRoute
   '/onboarding_/sign-in': typeof OnboardingSignInRoute
@@ -172,6 +181,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/onboarding'
+    | '/brainstorm'
     | '/migrate'
     | '/workspaces'
     | '/onboarding/sign-in'
@@ -189,6 +199,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/onboarding'
+    | '/brainstorm'
     | '/migrate'
     | '/workspaces'
     | '/onboarding/sign-in'
@@ -207,6 +218,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_app'
     | '/onboarding'
+    | '/_app/brainstorm'
     | '/_app/migrate'
     | '/_app/workspaces'
     | '/onboarding_/sign-in'
@@ -272,6 +284,13 @@ declare module '@tanstack/react-router' {
       path: '/migrate'
       fullPath: '/migrate'
       preLoaderRoute: typeof AppMigrateRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/brainstorm': {
+      id: '/_app/brainstorm'
+      path: '/brainstorm'
+      fullPath: '/brainstorm'
+      preLoaderRoute: typeof AppBrainstormRouteImport
       parentRoute: typeof AppRoute
     }
     '/workspaces/$workspaceId/vscode': {
@@ -348,6 +367,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppBrainstormRoute: typeof AppBrainstormRoute
   AppMigrateRoute: typeof AppMigrateRoute
   AppWorkspacesRoute: typeof AppWorkspacesRoute
   AppProjectsProjectIdRoute: typeof AppProjectsProjectIdRoute
@@ -362,6 +382,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppBrainstormRoute: AppBrainstormRoute,
   AppMigrateRoute: AppMigrateRoute,
   AppWorkspacesRoute: AppWorkspacesRoute,
   AppProjectsProjectIdRoute: AppProjectsProjectIdRoute,

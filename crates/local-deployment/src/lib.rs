@@ -12,6 +12,7 @@ use services::services::{
     analytics::{AnalyticsConfig, AnalyticsContext, AnalyticsService, generate_user_id},
     approvals::Approvals,
     auth::AuthContext,
+    brainstorm::BrainstormService,
     config::{Config, load_config_from_file, save_config_to_file},
     container::ContainerService,
     events::EventService,
@@ -63,6 +64,7 @@ pub struct LocalDeployment {
     relay_control: Arc<RelayControl>,
     server_info: Arc<ServerInfo>,
     pty: PtyService,
+    brainstorm: BrainstormService,
 }
 
 #[derive(Debug, Clone)]
@@ -204,6 +206,7 @@ impl Deployment for LocalDeployment {
         let file_search_cache = Arc::new(FileSearchCache::new());
 
         let pty = PtyService::new();
+        let brainstorm = BrainstormService::new();
         {
             let db = db.clone();
             let analytics = analytics.as_ref().map(|s| AnalyticsContext {
@@ -238,6 +241,7 @@ impl Deployment for LocalDeployment {
             relay_control,
             server_info,
             pty,
+            brainstorm,
         };
 
         Ok(deployment)
@@ -313,6 +317,10 @@ impl Deployment for LocalDeployment {
 
     fn trusted_key_auth(&self) -> &TrustedKeyAuthRuntime {
         &self.trusted_key_auth
+    }
+
+    fn brainstorm(&self) -> &BrainstormService {
+        &self.brainstorm
     }
 
     fn shared_api_base(&self) -> Option<String> {

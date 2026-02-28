@@ -89,6 +89,10 @@ Each workspace gets an isolated git worktree with its own branch. The `crates/gi
 - [`packages/local-web/AGENTS.md`](packages/local-web/AGENTS.md) — Design system: custom CSS variables, semantic color tokens (`text-high`, `bg-secondary`, etc.), container/view/UI component architecture, PascalCase filenames in `ui-new/`
 - [`docs/AGENTS.md`](docs/AGENTS.md) — Mintlify documentation writing guidelines
 
+## AI Memory
+
+Architecture documentation lives in `ai/memory/`. These files are auto-loaded at session start by the ai-memory plugin. Update them when the architecture changes.
+
 ## Key Patterns
 
 - **Error handling**: Custom error enums with `#[derive(Error, Debug)]`. Production errors go to Sentry. API responses wrapped in `ApiResponse<T>`

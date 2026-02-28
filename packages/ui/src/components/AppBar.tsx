@@ -12,6 +12,7 @@ import {
   KanbanIcon,
   SpinnerIcon,
   StarIcon,
+  BrainIcon,
 } from '@phosphor-icons/react';
 import { cn } from '../lib/cn';
 import { AppBarButton } from './AppBarButton';
@@ -62,6 +63,8 @@ interface AppBarProps {
   isLoadingProjects?: boolean;
   onSignIn?: () => void;
   onMigrate?: () => void;
+  onBrainstormClick?: () => void;
+  isBrainstormActive?: boolean;
   userPopover?: ReactNode;
   starCount?: number | null;
   onlineCount?: number | null;
@@ -115,6 +118,8 @@ export function AppBar({
   isLoadingProjects,
   onSignIn,
   onMigrate,
+  onBrainstormClick,
+  isBrainstormActive = false,
   userPopover,
   starCount,
   onlineCount,
@@ -145,6 +150,14 @@ export function AppBar({
               label="Workspaces"
               isActive={isWorkspacesActive}
               onClick={onWorkspacesClick}
+            />
+          )}
+          {onBrainstormClick && (
+            <AppBarButton
+              icon={BrainIcon}
+              label="Brainstorm"
+              isActive={isBrainstormActive}
+              onClick={onBrainstormClick}
             />
           )}
           {hosts.map((host) => {

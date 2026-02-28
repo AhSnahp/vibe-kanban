@@ -1,0 +1,74 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO brainstorm_messages\n               (id, session_id, role, content, thinking, model, input_tokens, output_tokens, thinking_tokens)\n               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)\n               RETURNING id AS \"id!: Uuid\",\n                         session_id AS \"session_id!: Uuid\",\n                         role,\n                         content,\n                         thinking,\n                         model,\n                         input_tokens,\n                         output_tokens,\n                         thinking_tokens,\n                         created_at AS \"created_at!: DateTime<Utc>\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: Uuid",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "session_id!: Uuid",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "role",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "content",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "thinking",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "model",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "input_tokens",
+        "ordinal": 6,
+        "type_info": "Integer"
+      },
+      {
+        "name": "output_tokens",
+        "ordinal": 7,
+        "type_info": "Integer"
+      },
+      {
+        "name": "thinking_tokens",
+        "ordinal": 8,
+        "type_info": "Integer"
+      },
+      {
+        "name": "created_at!: DateTime<Utc>",
+        "ordinal": 9,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 9
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "92dc2c52774ce8855d90521bf8f70006f89b70a5afd8126d0e1703678fab74d7"
+}

@@ -785,6 +785,40 @@ export type ExecutorDiscoveredOptions = { model_selector: ModelSelectorConfig, s
 
 export type JsonValue = number | string | boolean | Array<JsonValue> | { [key in string]?: JsonValue } | null;
 
+export type BrainstormSession = { id: string, title: string | null, system_prompt: string | null, project_id: string | null, status: BrainstormStatus, created_at: string, updated_at: string, };
+
+export type BrainstormMessage = { id: string, session_id: string, role: BrainstormRole, content: string, thinking: string | null, model: string | null, input_tokens: bigint | null, output_tokens: bigint | null, thinking_tokens: bigint | null, created_at: string, };
+
+export type BrainstormContext = { id: string, session_id: string, context_type: BrainstormContextType, reference_id: string | null, display_name: string, content_snapshot: string | null, created_at: string, };
+
+export type BrainstormStatus = "active" | "archived" | "converted";
+
+export type BrainstormRole = "user" | "assistant";
+
+export type BrainstormContextType = "repo" | "file" | "project";
+
+export type CreateBrainstormSession = { title: string | null, system_prompt: string | null, project_id: string | null, };
+
+export type UpdateBrainstormSession = { title: string | null, status: BrainstormStatus | null, system_prompt: string | null, };
+
+export type BrainstormSessionDetail = { session: BrainstormSession, messages: Array<BrainstormMessage>, context: Array<BrainstormContext>, };
+
+export type BrainstormSendRequest = { message: string, budget_tokens: bigint, };
+
+export type AddBrainstormContextRequest = { context_type: BrainstormContextType, reference_id: string | null, display_name: string, content_snapshot: string | null, };
+
+export type BrainstormPlanItem = { title: string, description: string, priority: string | null, estimated_effort: string | null, dependencies: Array<string>, tags: Array<string>, };
+
+export type BrainstormPlan = { project_name: string, project_description: string, items: Array<BrainstormPlanItem>, };
+
+export type PushPlanRequest = { project_id: string | null, new_project_name: string | null, create_repo: boolean, repo_path: string | null, items: Array<BrainstormPlanItem>, auto_create_workspaces: boolean, repo_ids: Array<string>, };
+
+export type PushPlanResponse = { project_id: string, issue_ids: Array<string>, workspace_ids: Array<string>, repo_id: string | null, };
+
+export type BrainstormStreamEvent = { "type": "TextDelta", "data": { text: string, } } | { "type": "ThinkingDelta", "data": { thinking: string, } } | { "type": "MessageComplete", "data": { message: BrainstormMessage, } } | { "type": "Error", "data": { error: string, } };
+
+export type BrainstormStatusResponse = { available: boolean, };
+
 export const DEFAULT_PR_DESCRIPTION_PROMPT = "Update the PR that was just created with a better title and description.\nThe PR number is #{pr_number} and the URL is {pr_url}.\n\nAnalyze the changes in this branch and write:\n1. A concise, descriptive title that summarizes the changes, postfixed with \"(Vibe Kanban)\"\n2. A detailed description that explains:\n   - What changes were made\n   - Why they were made (based on the task context)\n   - Any important implementation details\n   - At the end, include a note: \"This PR was written using [Vibe Kanban](https://vibekanban.com)\"\n\nUse the appropriate CLI tool to update the PR (gh pr edit for GitHub, az repos pr update for Azure DevOps).";
 
 export const DEFAULT_COMMIT_REMINDER_PROMPT = "There are uncommitted changes. Please stage and commit them now with a descriptive commit message.";

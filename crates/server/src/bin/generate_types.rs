@@ -245,6 +245,24 @@ fn generate_types_content() -> String {
         executors::model_selector::ModelSelectorConfig::decl(),
         executors::executor_discovery::ExecutorDiscoveredOptions::decl(),
         serde_json::Value::decl(),
+        // Brainstorm types
+        db::models::brainstorm::BrainstormSession::decl(),
+        db::models::brainstorm::BrainstormMessage::decl(),
+        db::models::brainstorm::BrainstormContext::decl(),
+        db::models::brainstorm::BrainstormStatus::decl(),
+        db::models::brainstorm::BrainstormRole::decl(),
+        db::models::brainstorm::BrainstormContextType::decl(),
+        db::models::brainstorm::CreateBrainstormSession::decl(),
+        db::models::brainstorm::UpdateBrainstormSession::decl(),
+        db::models::brainstorm::BrainstormSessionDetail::decl(),
+        db::models::brainstorm::BrainstormSendRequest::decl(),
+        db::models::brainstorm::AddBrainstormContextRequest::decl(),
+        db::models::brainstorm::BrainstormPlanItem::decl(),
+        db::models::brainstorm::BrainstormPlan::decl(),
+        db::models::brainstorm::PushPlanRequest::decl(),
+        db::models::brainstorm::PushPlanResponse::decl(),
+        db::models::brainstorm::BrainstormStreamEvent::decl(),
+        db::models::brainstorm::BrainstormStatusResponse::decl(),
     ];
 
     let body = decls

@@ -1,0 +1,56 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE brainstorm_sessions\n               SET title = COALESCE($2, title),\n                   status = COALESCE($3, status),\n                   system_prompt = COALESCE($4, system_prompt),\n                   updated_at = datetime('now', 'subsec')\n               WHERE id = $1\n               RETURNING id AS \"id!: Uuid\",\n                         title,\n                         system_prompt,\n                         project_id,\n                         status,\n                         created_at AS \"created_at!: DateTime<Utc>\",\n                         updated_at AS \"updated_at!: DateTime<Utc>\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: Uuid",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "title",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "system_prompt",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "project_id",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "status",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "created_at!: DateTime<Utc>",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "updated_at!: DateTime<Utc>",
+        "ordinal": 6,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "62f637797e48d6cf70efc0b40ba8503448dd3cd34526180ddbcbae1db855320a"
+}

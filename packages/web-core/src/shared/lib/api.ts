@@ -94,6 +94,16 @@ import {
   RelayPairedClient,
   ListRelayPairedClientsResponse,
   RemoveRelayPairedClientResponse,
+  BrainstormSession,
+  BrainstormSessionDetail,
+  BrainstormContext,
+  BrainstormPlan,
+  BrainstormStatusResponse,
+  CreateBrainstormSession,
+  UpdateBrainstormSession,
+  AddBrainstormContextRequest,
+  PushPlanRequest,
+  PushPlanResponse,
 } from 'shared/types';
 import type { Project as RemoteProject } from 'shared/remote-types';
 import type { WorkspaceWithSession } from '@/shared/types/attempt';
@@ -1479,6 +1489,90 @@ export const relayApi = {
       }
     );
     return handleApiResponse<RemoveRelayPairedClientResponse>(response);
+  },
+};
+
+// Brainstorm API
+export const brainstormApi = {
+  getStatus: async (): Promise<BrainstormStatusResponse> => {
+    const response = await makeRequest('/api/brainstorm/status');
+    return handleApiResponse<BrainstormStatusResponse>(response);
+  },
+  listSessions: async (): Promise<BrainstormSession[]> => {
+    const response = await makeRequest('/api/brainstorm/sessions');
+    return handleApiResponse<BrainstormSession[]>(response);
+  },
+  createSession: async (
+    data: CreateBrainstormSession
+  ): Promise<BrainstormSession> => {
+    const response = await makeRequest('/api/brainstorm/sessions', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return handleApiResponse<BrainstormSession>(response);
+  },
+  getSession: async (id: string): Promise<BrainstormSessionDetail> => {
+    const response = await makeRequest(`/api/brainstorm/sessions/${id}`);
+    return handleApiResponse<BrainstormSessionDetail>(response);
+  },
+  updateSession: async (
+    id: string,
+    data: UpdateBrainstormSession
+  ): Promise<BrainstormSession> => {
+    const response = await makeRequest(`/api/brainstorm/sessions/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+    return handleApiResponse<BrainstormSession>(response);
+  },
+  deleteSession: async (id: string): Promise<void> => {
+    const response = await makeRequest(`/api/brainstorm/sessions/${id}`, {
+      method: 'DELETE',
+    });
+    return handleApiResponse<void>(response);
+  },
+  addContext: async (
+    sessionId: string,
+    data: AddBrainstormContextRequest
+  ): Promise<BrainstormContext> => {
+    const response = await makeRequest(
+      `/api/brainstorm/sessions/${sessionId}/context`,
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    );
+    return handleApiResponse<BrainstormContext>(response);
+  },
+  removeContext: async (
+    sessionId: string,
+    contextId: string
+  ): Promise<void> => {
+    const response = await makeRequest(
+      `/api/brainstorm/sessions/${sessionId}/context/${contextId}`,
+      { method: 'DELETE' }
+    );
+    return handleApiResponse<void>(response);
+  },
+  extractPlan: async (sessionId: string): Promise<BrainstormPlan> => {
+    const response = await makeRequest(
+      `/api/brainstorm/sessions/${sessionId}/extract-plan`,
+      { method: 'POST' }
+    );
+    return handleApiResponse<BrainstormPlan>(response);
+  },
+  pushPlan: async (
+    sessionId: string,
+    data: PushPlanRequest
+  ): Promise<PushPlanResponse> => {
+    const response = await makeRequest(
+      `/api/brainstorm/sessions/${sessionId}/push-plan`,
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    );
+    return handleApiResponse<PushPlanResponse>(response);
   },
 };
 
