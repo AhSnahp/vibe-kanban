@@ -34,6 +34,10 @@ import {
 } from 'shared/types';
 import { useUserSystem } from '@/shared/hooks/useUserSystem';
 import { useTheme } from '@/shared/hooks/useTheme';
+import { getFirstProjectDestination } from '@/shared/lib/firstProjectDestination';
+import { useOrganizationStore } from '@/shared/stores/useOrganizationStore';
+import { resolveAppPath } from '@/shared/lib/routes/pathResolution';
+import { toWorkspacesCreate } from '@/shared/lib/routes/navigation';
 import { AgentIcon, getAgentName } from '@/shared/components/AgentIcon';
 import { IdeIcon } from '@/shared/components/IdeIcon';
 import { getIdeName } from '@/shared/lib/ideName';
@@ -150,6 +154,7 @@ export function LandingPage() {
   const { theme } = useTheme();
   const { config, profiles, updateAndSaveConfig, loading } = useUserSystem();
   const posthog = usePostHog();
+  const setSelectedOrgId = useOrganizationStore((s) => s.setSelectedOrgId);
 
   const [initialized, setInitialized] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -270,6 +275,7 @@ export function LandingPage() {
     const success = await updateAndSaveConfig({
       onboarding_acknowledged: true,
       disclaimer_acknowledged: true,
+      remote_onboarding_acknowledged: true,
       executor_profile: {
         executor: selectedAgent,
         variant: null,
@@ -284,11 +290,17 @@ export function LandingPage() {
     setSaving(false);
 
     if (success) {
+      const firstProjectDestination =
+        await getFirstProjectDestination(setSelectedOrgId);
+      const destination = firstProjectDestination || '/workspaces/create';
       trackRemoteOnboardingEvent(REMOTE_ONBOARDING_EVENTS.STAGE_COMPLETED, {
         stage: 'landing',
-        destination: '/onboarding/sign-in',
+        destination,
       });
-      navigate({ to: '/onboarding/sign-in', replace: true });
+      navigate({
+        ...(resolveAppPath(destination) ?? toWorkspacesCreate()),
+        replace: true,
+      });
       return;
     }
 
