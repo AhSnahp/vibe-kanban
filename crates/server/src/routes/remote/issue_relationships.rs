@@ -8,6 +8,8 @@ use axum::{
     response::Json as ResponseJson,
     routing::get,
 };
+use db::models::local_issue::LocalIssueRelationship;
+use deployment::Deployment;
 use utils::response::ApiResponse;
 use uuid::Uuid;
 
@@ -29,25 +31,47 @@ async fn list_issue_relationships(
     State(deployment): State<DeploymentImpl>,
     Query(query): Query<ListIssueRelationshipsQuery>,
 ) -> Result<ResponseJson<ApiResponse<ListIssueRelationshipsResponse>>, ApiError> {
-    let client = deployment.remote_client()?;
-    let response = client.list_issue_relationships(query.issue_id).await?;
-    Ok(ResponseJson(ApiResponse::success(response)))
+    match deployment.remote_client() {
+        Ok(client) => {
+            let response = client.list_issue_relationships(query.issue_id).await?;
+            Ok(ResponseJson(ApiResponse::success(response)))
+        }
+        Err(_) => {
+            let response =
+                LocalIssueRelationship::list(&deployment.db().pool, query.issue_id).await?;
+            Ok(ResponseJson(ApiResponse::success(response)))
+        }
+    }
 }
 
 async fn create_issue_relationship(
     State(deployment): State<DeploymentImpl>,
     Json(request): Json<CreateIssueRelationshipRequest>,
 ) -> Result<ResponseJson<ApiResponse<MutationResponse<IssueRelationship>>>, ApiError> {
-    let client = deployment.remote_client()?;
-    let response = client.create_issue_relationship(&request).await?;
-    Ok(ResponseJson(ApiResponse::success(response)))
+    match deployment.remote_client() {
+        Ok(client) => {
+            let response = client.create_issue_relationship(&request).await?;
+            Ok(ResponseJson(ApiResponse::success(response)))
+        }
+        Err(_) => {
+            let response = LocalIssueRelationship::create(&deployment.db().pool, &request).await?;
+            Ok(ResponseJson(ApiResponse::success(response)))
+        }
+    }
 }
 
 async fn delete_issue_relationship(
     State(deployment): State<DeploymentImpl>,
     Path(relationship_id): Path<Uuid>,
 ) -> Result<ResponseJson<ApiResponse<()>>, ApiError> {
-    let client = deployment.remote_client()?;
-    client.delete_issue_relationship(relationship_id).await?;
-    Ok(ResponseJson(ApiResponse::success(())))
+    match deployment.remote_client() {
+        Ok(client) => {
+            client.delete_issue_relationship(relationship_id).await?;
+            Ok(ResponseJson(ApiResponse::success(())))
+        }
+        Err(_) => {
+            LocalIssueRelationship::delete(&deployment.db().pool, relationship_id).await?;
+            Ok(ResponseJson(ApiResponse::success(())))
+        }
+    }
 }

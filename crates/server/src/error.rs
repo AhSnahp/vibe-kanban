@@ -5,8 +5,8 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use db::models::{
-    execution_process::ExecutionProcessError, repo::RepoError, scratch::ScratchError,
-    session::SessionError, workspace::WorkspaceError,
+    execution_process::ExecutionProcessError, local_issue::LocalKanbanError, repo::RepoError,
+    scratch::ScratchError, session::SessionError, workspace::WorkspaceError,
 };
 use deployment::{DeploymentError, RemoteClientNotConfigured};
 use executors::{command::CommandBuildError, executors::ExecutorError};
@@ -470,6 +470,21 @@ impl IntoResponse for ApiError {
             .unwrap_or_else(|| format!("{}: {}", info.error_type, self));
         let response = ApiResponse::<()>::error(&message);
         (info.status, Json(response)).into_response()
+    }
+}
+
+impl From<LocalKanbanError> for ApiError {
+    fn from(err: LocalKanbanError) -> Self {
+        match err {
+            LocalKanbanError::Database(e) => ApiError::Database(e),
+            LocalKanbanError::ProjectNotFound => {
+                ApiError::BadRequest("Project not found".to_string())
+            }
+            LocalKanbanError::IssueNotFound => ApiError::BadRequest("Issue not found".to_string()),
+            LocalKanbanError::StatusNotFound => {
+                ApiError::BadRequest("Status not found".to_string())
+            }
+        }
     }
 }
 

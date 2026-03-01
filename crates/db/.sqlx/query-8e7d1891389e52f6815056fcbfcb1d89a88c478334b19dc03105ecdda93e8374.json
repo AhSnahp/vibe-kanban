@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO local_issue_relationships (id, issue_id, related_issue_id, relationship_type)\n               VALUES ($1, $2, $3, $4)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "8e7d1891389e52f6815056fcbfcb1d89a88c478334b19dc03105ecdda93e8374"
+}

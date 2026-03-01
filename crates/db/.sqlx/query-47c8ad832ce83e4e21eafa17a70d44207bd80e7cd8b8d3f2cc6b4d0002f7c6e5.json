@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO local_issues\n               (id, project_id, status_id, issue_number, simple_id, title, description,\n                priority, sort_order, parent_issue_id, parent_issue_sort_order,\n                start_date, target_date, completed_at, extension_metadata)\n               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 15
+    },
+    "nullable": []
+  },
+  "hash": "47c8ad832ce83e4e21eafa17a70d44207bd80e7cd8b8d3f2cc6b4d0002f7c6e5"
+}

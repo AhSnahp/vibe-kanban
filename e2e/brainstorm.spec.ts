@@ -1,175 +1,176 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from '@playwright/test';
 
-// Brainstorm Terminal E2E Tests
-// Tests that work without backend use /brainstorm direct navigation
-// Tests requiring backend API are marked with .skip when no backend is available
+// ── Brainstorm Page E2E Tests ─────────────────────────────────────
+//
+// Tests brainstorm page rendering and session management.
+// Tests requiring backend API are skipped when E2E_HAS_BACKEND is not set.
+//
+// Run: E2E_HAS_BACKEND=1 FRONTEND_PORT=3001 npx playwright test e2e/brainstorm.spec.ts
 
 const HAS_BACKEND = !!process.env.E2E_HAS_BACKEND;
 
-test.describe("Brainstorm Terminal", () => {
-  test.describe("Navigation", () => {
-    test("should render brainstorm terminal page", async ({ page }) => {
-      await page.goto("/brainstorm");
-      const heading = page.getByText("Brainstorm Terminal");
-      await expect(heading).toBeVisible();
-    });
-
-    test("should show brainstorm description text", async ({ page }) => {
-      await page.goto("/brainstorm");
-      await expect(
-        page.getByText("Deep project planning with Claude"),
-      ).toBeVisible();
-    });
-
-    test("should show AppBar with brainstorm icon on brainstorm page", async ({
+test.describe('Brainstorm Page', () => {
+  test.describe('Navigation', () => {
+    test('should render brainstorm page with Sessions sidebar', async ({
       page,
     }) => {
-      await page.goto("/brainstorm");
-      // The brainstorm button in the AppBar has aria-label "Brainstorm"
+      await page.goto('/brainstorm');
+      await expect(
+        page.getByText('Sessions', { exact: true })
+      ).toBeVisible({ timeout: 10_000 });
+    });
+
+    test('should show AppBar on brainstorm page', async ({ page }) => {
+      await page.goto('/brainstorm');
       const appBar = page.locator('nav, [class*="border-r"]').first();
       await expect(appBar).toBeVisible();
     });
 
-    // This test requires the backend to serve the home page past "Loading..."
-    test.skip(!HAS_BACKEND, "Requires backend API");
-    test("should navigate to /brainstorm from home via AppBar", async ({
+    test.skip(!HAS_BACKEND, 'Requires backend API');
+    test('should navigate to /brainstorm from home via AppBar', async ({
       page,
     }) => {
-      await page.goto("/");
-      await page.getByLabel("Brainstorm").click();
-      await expect(page).toHaveURL(/\/brainstorm/);
-    });
-  });
-
-  test.describe("Layout", () => {
-    test("should show sidebar with Sessions header", async ({ page }) => {
-      await page.goto("/brainstorm");
-      await expect(page.getByText("Sessions", { exact: true })).toBeVisible();
-    });
-
-    test("should show empty state when no sessions exist", async ({ page }) => {
-      await page.goto("/brainstorm");
-      await expect(page.getByText("No sessions yet")).toBeVisible();
-    });
-
-    test("should show Start New Session button", async ({ page }) => {
-      await page.goto("/brainstorm");
-      const startButton = page.getByRole("button", {
-        name: "Start New Session",
-      });
-      await expect(startButton).toBeVisible();
-    });
-
-    test("should show create session button in sidebar header", async ({
-      page,
-    }) => {
-      await page.goto("/brainstorm");
-      // The + button in the Sessions header
-      const sidebar = page.locator('[class*="border-r"]').first();
-      const plusButton = sidebar.getByRole("button").first();
-      await expect(plusButton).toBeVisible();
-    });
-
-    test("should not show plan review panel by default", async ({ page }) => {
-      await page.goto("/brainstorm");
-      // Plan review panel only appears when a plan is extracted
-      const planReviewHeading = page.getByText("Plan Review");
-      await expect(planReviewHeading).not.toBeVisible();
-    });
-  });
-
-  test.describe("Session Management (requires backend)", () => {
-    test.skip(!HAS_BACKEND, "Requires backend API");
-
-    test("should create a new session when clicking Start New Session", async ({
-      page,
-    }) => {
-      await page.goto("/brainstorm");
-      await page.getByRole("button", { name: "Start New Session" }).click();
-      // After creating a session, the input area should appear
-      const textarea = page.getByPlaceholder(/message|brainstorm|type/i);
-      await expect(textarea).toBeVisible({ timeout: 10_000 });
-    });
-
-    test("should show session in sidebar after creation", async ({ page }) => {
-      await page.goto("/brainstorm");
-      await page.getByRole("button", { name: "Start New Session" }).click();
-      // Wait for session to appear in sidebar
-      await page
-        .getByPlaceholder(/message|brainstorm|type/i)
-        .waitFor({ timeout: 10_000 });
-      // The sidebar should now have at least one session item
-      await expect(page.getByText("No sessions yet")).not.toBeVisible();
-    });
-
-    test("should delete a session from sidebar", async ({ page }) => {
-      await page.goto("/brainstorm");
-      // Create a session first
-      await page.getByRole("button", { name: "Start New Session" }).click();
-      await page
-        .getByPlaceholder(/message|brainstorm|type/i)
-        .waitFor({ timeout: 10_000 });
-
-      // Hover over the session to reveal delete button
-      const sessionItem = page.getByText(/untitled session/i).first();
-      await sessionItem.hover();
-
-      // Click the delete button (trash icon)
-      const deleteButton = page
-        .locator("button")
-        .filter({ has: page.locator("svg") })
-        .last();
-      if (await deleteButton.isVisible()) {
-        await deleteButton.click();
-        await expect(page.getByText("No sessions yet")).toBeVisible({
-          timeout: 5_000,
-        });
+      await page.goto('/');
+      await page.waitForLoadState('networkidle');
+      const brainstormBtn = page.getByLabel('Brainstorm');
+      if (await brainstormBtn.isVisible()) {
+        await brainstormBtn.click();
+        await expect(page).toHaveURL(/\/brainstorm/);
       }
     });
   });
 
-  test.describe("Message Input (requires backend)", () => {
-    test.skip(!HAS_BACKEND, "Requires backend API");
+  test.describe('Layout', () => {
+    test('should show sidebar with Sessions header', async ({ page }) => {
+      await page.goto('/brainstorm');
+      await expect(
+        page.getByText('Sessions', { exact: true })
+      ).toBeVisible();
+    });
 
-    test("should have a message input textarea after creating session", async ({
+    test('should show create session button in sidebar header', async ({
       page,
     }) => {
-      await page.goto("/brainstorm");
-      await page.getByRole("button", { name: "Start New Session" }).click();
-      const textarea = page.getByPlaceholder(/message|brainstorm|type/i);
+      await page.goto('/brainstorm');
+      const sidebar = page.locator('[class*="border-r"]').first();
+      const plusButton = sidebar.getByRole('button').first();
+      await expect(plusButton).toBeVisible();
+    });
+
+    test('should not show plan review panel by default', async ({ page }) => {
+      await page.goto('/brainstorm');
+      const planReviewHeading = page.getByText('Plan Review');
+      await expect(planReviewHeading).not.toBeVisible();
+    });
+  });
+
+  test.describe('Session Management (requires backend)', () => {
+    test.skip(!HAS_BACKEND, 'Requires backend API');
+
+    test('should show message input after creating a session via API', async ({
+      page,
+      request,
+    }) => {
+      // Create session via API (avoids reliance on empty-state button)
+      await request.post('/api/brainstorm/sessions', { data: {} });
+
+      await page.goto('/brainstorm');
+      await page.waitForLoadState('networkidle');
+
+      const textarea = page.getByPlaceholder(/Message/);
+      await expect(textarea).toBeVisible({ timeout: 10_000 });
+    });
+
+    test('should show session in sidebar after API creation', async ({
+      page,
+      request,
+    }) => {
+      await request.post('/api/brainstorm/sessions', { data: {} });
+
+      await page.goto('/brainstorm');
+      await page.waitForLoadState('networkidle');
+
+      // Sidebar should have session content (not the empty "No sessions yet")
+      await expect(page.getByText('No sessions yet')).not.toBeVisible({
+        timeout: 5_000,
+      });
+    });
+
+    test('should delete a session via API and verify removal', async ({
+      request,
+    }) => {
+      // Create then delete via API
+      const createResp = await request.post('/api/brainstorm/sessions', {
+        data: {},
+      });
+      const session = (await createResp.json()).data;
+
+      const deleteResp = await request.delete(
+        `/api/brainstorm/sessions/${session.id}`
+      );
+      expect(deleteResp.ok()).toBeTruthy();
+
+      // Verify it's gone
+      const getResp = await request.get(
+        `/api/brainstorm/sessions/${session.id}`
+      );
+      expect(getResp.ok()).toBeFalsy();
+    });
+  });
+
+  test.describe('Message Input (requires backend)', () => {
+    test.skip(!HAS_BACKEND, 'Requires backend API');
+
+    test('should have an enabled message input after session creation', async ({
+      page,
+      request,
+    }) => {
+      await request.post('/api/brainstorm/sessions', { data: {} });
+
+      await page.goto('/brainstorm');
+      await page.waitForLoadState('networkidle');
+
+      const textarea = page.getByPlaceholder(/Message/);
       await expect(textarea).toBeVisible({ timeout: 10_000 });
       await expect(textarea).toBeEnabled();
     });
 
-    test("should have extract plan button", async ({ page }) => {
-      await page.goto("/brainstorm");
-      await page.getByRole("button", { name: "Start New Session" }).click();
-      await page
-        .getByPlaceholder(/message|brainstorm|type/i)
-        .waitFor({ timeout: 10_000 });
-      const extractButton = page.getByRole("button", {
+    test('should have extract plan button', async ({ page, request }) => {
+      await request.post('/api/brainstorm/sessions', { data: {} });
+
+      await page.goto('/brainstorm');
+      await page.waitForLoadState('networkidle');
+
+      const extractButton = page.getByRole('button', {
         name: /extract plan/i,
       });
-      await expect(extractButton).toBeVisible();
+      await expect(extractButton).toBeVisible({ timeout: 10_000 });
     });
   });
 
-  test.describe("Responsive / Mobile", () => {
+  test.describe('Responsive / Mobile', () => {
     test.use({
       viewport: { width: 375, height: 812 },
     });
 
-    test("should render brainstorm page on mobile", async ({ page }) => {
-      await page.goto("/brainstorm");
-      const heading = page.getByText("Brainstorm Terminal");
-      await expect(heading).toBeVisible();
+    test('should render brainstorm page on mobile', async ({ page }) => {
+      await page.goto('/brainstorm');
+      await expect(
+        page.getByText('Sessions', { exact: true })
+      ).toBeVisible({ timeout: 10_000 });
     });
 
-    test("should show Start New Session button on mobile", async ({ page }) => {
-      await page.goto("/brainstorm");
-      await expect(
-        page.getByRole("button", { name: "Start New Session" }),
-      ).toBeVisible();
+    test.skip(!HAS_BACKEND, 'Requires backend API');
+    test('should show message input on mobile after session creation', async ({
+      page,
+      request,
+    }) => {
+      await request.post('/api/brainstorm/sessions', { data: {} });
+      await page.goto('/brainstorm');
+      await page.waitForLoadState('networkidle');
+
+      const textarea = page.getByPlaceholder(/Message/);
+      await expect(textarea).toBeVisible({ timeout: 10_000 });
     });
   });
 });

@@ -68,6 +68,60 @@ struct McpLinkWorkspaceResponse {
     issue_id: String,
 }
 
+// ── get_workspace_status types ───────────────────────────────────────
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct GetWorkspaceStatusRequest {
+    #[schemars(description = "The workspace ID to check status for")]
+    workspace_id: Uuid,
+}
+
+#[derive(Debug, Serialize, schemars::JsonSchema)]
+struct GetWorkspaceStatusResponse {
+    workspace_id: String,
+    status: String,
+    started_at: Option<String>,
+    ended_at: Option<String>,
+    run_reason: Option<String>,
+}
+
+// ── request_code_review types ───────────────────────────────────────
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct RequestCodeReviewRequest {
+    #[schemars(description = "The workspace ID to review")]
+    workspace_id: Uuid,
+    #[schemars(
+        description = "The executor to use for review (default: 'CODEX'). Codex has specialized review logic."
+    )]
+    executor: Option<String>,
+    #[schemars(description = "Optional additional instructions for the reviewer")]
+    additional_prompt: Option<String>,
+}
+
+#[derive(Debug, Serialize, schemars::JsonSchema)]
+struct RequestCodeReviewResponse {
+    execution_process_id: String,
+    workspace_id: String,
+    executor: String,
+}
+
+// ── send_follow_up types ────────────────────────────────────────────
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct SendFollowUpRequest {
+    #[schemars(description = "The workspace ID to send a follow-up to")]
+    workspace_id: Uuid,
+    #[schemars(description = "The follow-up prompt/instructions to send")]
+    prompt: String,
+}
+
+#[derive(Debug, Serialize, schemars::JsonSchema)]
+struct SendFollowUpResponse {
+    execution_process_id: String,
+    workspace_id: String,
+}
+
 fn build_workspace_prompt_from_issue(issue: &api_types::Issue) -> Option<String> {
     let title = issue.title.trim();
     let description = issue
@@ -243,6 +297,256 @@ impl TaskServer {
             success: true,
             workspace_id: workspace_id.to_string(),
             issue_id: issue_id.to_string(),
+        })
+    }
+
+    #[tool(
+        description = "Get the current execution status of a workspace. Returns the latest execution process status (running, completed, failed, killed) and timing info. Use this to monitor if a worker agent has completed its task."
+    )]
+    async fn get_workspace_status(
+        &self,
+        Parameters(GetWorkspaceStatusRequest { workspace_id }): Parameters<
+            GetWorkspaceStatusRequest,
+        >,
+    ) -> Result<CallToolResult, ErrorData> {
+        // Get sessions for this workspace
+        let sessions_url = self.url(&format!("/api/sessions?workspace_id={}", workspace_id));
+        let sessions: Vec<serde_json::Value> =
+            match self.send_json(self.client.get(&sessions_url)).await {
+                Ok(s) => s,
+                Err(e) => return Ok(e),
+            };
+
+        // If no sessions, workspace is idle
+        let session = match sessions.first() {
+            Some(s) => s,
+            None => {
+                return TaskServer::success(&GetWorkspaceStatusResponse {
+                    workspace_id: workspace_id.to_string(),
+                    status: "idle".to_string(),
+                    started_at: None,
+                    ended_at: None,
+                    run_reason: None,
+                });
+            }
+        };
+
+        let session_id = match session.get("id").and_then(|v| v.as_str()) {
+            Some(id) => id.to_string(),
+            None => {
+                return TaskServer::success(&GetWorkspaceStatusResponse {
+                    workspace_id: workspace_id.to_string(),
+                    status: "idle".to_string(),
+                    started_at: None,
+                    ended_at: None,
+                    run_reason: None,
+                });
+            }
+        };
+
+        // Fetch the session detail to get its execution processes
+        let session_detail_url = self.url(&format!("/api/sessions/{}", session_id));
+        let session_detail: serde_json::Value =
+            match self.send_json(self.client.get(&session_detail_url)).await {
+                Ok(d) => d,
+                Err(e) => return Ok(e),
+            };
+
+        // Try to find execution_processes in the session detail
+        // Alternatively, list execution processes for the session
+        let processes = session_detail
+            .get("execution_processes")
+            .and_then(|v| v.as_array());
+
+        if let Some(procs) = processes
+            && let Some(latest) = procs.last()
+        {
+            let status = latest
+                .get("status")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown");
+            let started_at = latest
+                .get("started_at")
+                .and_then(|v| v.as_str())
+                .map(String::from);
+            let completed_at = latest
+                .get("completed_at")
+                .and_then(|v| v.as_str())
+                .map(String::from);
+            let run_reason = latest
+                .get("run_reason")
+                .and_then(|v| v.as_str())
+                .map(String::from);
+
+            return TaskServer::success(&GetWorkspaceStatusResponse {
+                workspace_id: workspace_id.to_string(),
+                status: status.to_string(),
+                started_at,
+                ended_at: completed_at,
+                run_reason,
+            });
+        }
+
+        TaskServer::success(&GetWorkspaceStatusResponse {
+            workspace_id: workspace_id.to_string(),
+            status: "idle".to_string(),
+            started_at: None,
+            ended_at: None,
+            run_reason: None,
+        })
+    }
+
+    #[tool(
+        description = "Request a code review on a workspace's changes. Dispatches a review agent (default: Codex) to review all code changes in the workspace's branch. Returns the execution process ID for tracking. Codex has specialized review logic — it's the recommended executor for code review."
+    )]
+    async fn request_code_review(
+        &self,
+        Parameters(RequestCodeReviewRequest {
+            workspace_id,
+            executor,
+            additional_prompt,
+        }): Parameters<RequestCodeReviewRequest>,
+    ) -> Result<CallToolResult, ErrorData> {
+        // Find the latest session for this workspace
+        let sessions_url = self.url(&format!("/api/sessions?workspace_id={}", workspace_id));
+        let sessions: Vec<serde_json::Value> =
+            match self.send_json(self.client.get(&sessions_url)).await {
+                Ok(s) => s,
+                Err(e) => return Ok(e),
+            };
+
+        let session = match sessions.first() {
+            Some(s) => s,
+            None => {
+                return Self::err(
+                    "No sessions found for workspace. Cannot start review.",
+                    None::<&str>,
+                );
+            }
+        };
+
+        let session_id = match session.get("id").and_then(|v| v.as_str()) {
+            Some(id) => id.to_string(),
+            None => {
+                return Self::err("Could not parse session ID", None::<&str>);
+            }
+        };
+
+        // Resolve executor (default to CODEX)
+        let executor_name = executor
+            .as_deref()
+            .unwrap_or("CODEX")
+            .trim()
+            .replace('-', "_")
+            .to_ascii_uppercase();
+
+        let base_executor = match BaseCodingAgent::from_str(&executor_name) {
+            Ok(exec) => exec,
+            Err(_) => {
+                return Self::err(
+                    format!(
+                        "Unknown executor '{}'. Use CODEX for code review.",
+                        executor_name
+                    ),
+                    None::<String>,
+                );
+            }
+        };
+
+        // Call the review endpoint
+        let review_url = self.url(&format!("/api/sessions/{}/review", session_id));
+        let review_payload = serde_json::json!({
+            "executor_config": {
+                "executor": base_executor.to_string(),
+            },
+            "additional_prompt": additional_prompt,
+            "use_all_workspace_commits": true,
+        });
+
+        let review_response: serde_json::Value = match self
+            .send_json(self.client.post(&review_url).json(&review_payload))
+            .await
+        {
+            Ok(resp) => resp,
+            Err(e) => return Ok(e),
+        };
+
+        let process_id = review_response
+            .get("id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("unknown")
+            .to_string();
+
+        TaskServer::success(&RequestCodeReviewResponse {
+            execution_process_id: process_id,
+            workspace_id: workspace_id.to_string(),
+            executor: executor_name,
+        })
+    }
+
+    #[tool(
+        description = "Send a follow-up message to a workspace's agent session. Use this to give new instructions to a worker agent that has completed (or failed) its previous task. Returns a new execution process ID."
+    )]
+    async fn send_follow_up(
+        &self,
+        Parameters(SendFollowUpRequest {
+            workspace_id,
+            prompt,
+        }): Parameters<SendFollowUpRequest>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let prompt_trimmed = prompt.trim();
+        if prompt_trimmed.is_empty() {
+            return Self::err("Prompt must not be empty.", None::<&str>);
+        }
+
+        // Find the latest session for this workspace
+        let sessions_url = self.url(&format!("/api/sessions?workspace_id={}", workspace_id));
+        let sessions: Vec<serde_json::Value> =
+            match self.send_json(self.client.get(&sessions_url)).await {
+                Ok(s) => s,
+                Err(e) => return Ok(e),
+            };
+
+        let session = match sessions.first() {
+            Some(s) => s,
+            None => {
+                return Self::err(
+                    "No sessions found for workspace. Cannot send follow-up.",
+                    None::<&str>,
+                );
+            }
+        };
+
+        let session_id = match session.get("id").and_then(|v| v.as_str()) {
+            Some(id) => id.to_string(),
+            None => {
+                return Self::err("Could not parse session ID", None::<&str>);
+            }
+        };
+
+        // Call the follow-up endpoint
+        let follow_up_url = self.url(&format!("/api/sessions/{}/follow-up", session_id));
+        let follow_up_payload = serde_json::json!({
+            "prompt": prompt_trimmed,
+        });
+
+        let follow_up_response: serde_json::Value = match self
+            .send_json(self.client.post(&follow_up_url).json(&follow_up_payload))
+            .await
+        {
+            Ok(resp) => resp,
+            Err(e) => return Ok(e),
+        };
+
+        let process_id = follow_up_response
+            .get("id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("unknown")
+            .to_string();
+
+        TaskServer::success(&SendFollowUpResponse {
+            execution_process_id: process_id,
+            workspace_id: workspace_id.to_string(),
         })
     }
 }

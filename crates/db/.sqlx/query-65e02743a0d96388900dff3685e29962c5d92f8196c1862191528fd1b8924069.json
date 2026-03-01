@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE local_issue_counters\n               SET next_number = next_number + 1\n               WHERE project_id = $1\n               RETURNING next_number - 1 AS \"num!: i32\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "num!: i32",
+        "ordinal": 0,
+        "type_info": "Null"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "65e02743a0d96388900dff3685e29962c5d92f8196c1862191528fd1b8924069"
+}

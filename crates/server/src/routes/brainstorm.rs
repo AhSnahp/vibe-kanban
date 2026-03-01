@@ -5,11 +5,14 @@ use axum::{
     response::{IntoResponse, Json as ResponseJson},
     routing::{delete, get, post},
 };
-use db::models::brainstorm::{
-    AddBrainstormContextRequest, BrainstormContext, BrainstormError, BrainstormMessage,
-    BrainstormPlan, BrainstormPlanItem, BrainstormSendRequest, BrainstormSession,
-    BrainstormSessionDetail, BrainstormStatusResponse, BrainstormStreamEvent,
-    CreateBrainstormSession, PushPlanRequest, PushPlanResponse, UpdateBrainstormSession,
+use db::models::{
+    brainstorm::{
+        AddBrainstormContextRequest, BrainstormContext, BrainstormError, BrainstormMessage,
+        BrainstormPlan, BrainstormPlanItem, BrainstormSendRequest, BrainstormSession,
+        BrainstormSessionDetail, BrainstormStatusResponse, BrainstormStreamEvent,
+        CreateBrainstormSession, PushPlanRequest, PushPlanResponse, UpdateBrainstormSession,
+    },
+    local_issue::{LocalIssue, LocalProject, LocalProjectStatus},
 };
 use deployment::Deployment;
 use futures_util::StreamExt;
@@ -215,13 +218,21 @@ pub async fn push_plan(
     Path(_session_id): Path<Uuid>,
     Json(payload): Json<PushPlanRequest>,
 ) -> Result<ResponseJson<ApiResponse<PushPlanResponse>>, ApiError> {
-    let client = deployment.remote_client()?;
+    match deployment.remote_client() {
+        Ok(client) => push_plan_remote(client, &payload).await,
+        Err(_) => push_plan_local(&deployment, &payload).await,
+    }
+}
 
-    // Resolve project ID
-    let project_id = match (payload.project_id, payload.new_project_name) {
-        (Some(id), _) => Uuid::parse_str(&id)
+/// Push plan via remote cloud backend (original path).
+async fn push_plan_remote(
+    client: services::services::remote_client::RemoteClient,
+    payload: &PushPlanRequest,
+) -> Result<ResponseJson<ApiResponse<PushPlanResponse>>, ApiError> {
+    let project_id = match (&payload.project_id, &payload.new_project_name) {
+        (Some(id), _) => Uuid::parse_str(id)
             .map_err(|_| ApiError::BadRequest("Invalid project_id".to_string()))?,
-        (None, Some(_name)) => {
+        (None, Some(_)) => {
             return Err(ApiError::BadRequest(
                 "Creating new projects from brainstorm is not yet supported. Please select an existing project.".to_string(),
             ));
@@ -233,14 +244,12 @@ pub async fn push_plan(
         }
     };
 
-    // Get the first status column (e.g. "To Do") for the target project
     let statuses = client.list_project_statuses(project_id).await?;
     let first_status = statuses
         .project_statuses
         .first()
         .ok_or_else(|| ApiError::BadRequest("Project has no status columns".to_string()))?;
 
-    // Create an issue for each plan item
     let mut issue_ids = Vec::new();
     for (i, item) in payload.items.iter().enumerate() {
         let priority = parse_priority(item);
@@ -271,6 +280,100 @@ pub async fn push_plan(
         issue_ids,
         workspace_ids: vec![],
         repo_id: None,
+    })))
+}
+
+/// Push plan via local SQLite when no cloud backend is available.
+/// Supports: creating local projects, git init, local issues, orchestrator workspace.
+async fn push_plan_local(
+    deployment: &DeploymentImpl,
+    payload: &PushPlanRequest,
+) -> Result<ResponseJson<ApiResponse<PushPlanResponse>>, ApiError> {
+    let pool = &deployment.db().pool;
+
+    // 1. Resolve or create local project
+    let (project_id, _project_name) = match (&payload.project_id, &payload.new_project_name) {
+        (Some(id), _) => {
+            let pid = Uuid::parse_str(id)
+                .map_err(|_| ApiError::BadRequest("Invalid project_id".to_string()))?;
+            let project = LocalProject::get(pool, pid).await?;
+            (pid, project.name)
+        }
+        (None, Some(name)) => {
+            let (project, _statuses) =
+                LocalProject::create_with_defaults(pool, name, "#f97316").await?;
+            (project.id, project.name)
+        }
+        (None, None) => {
+            return Err(ApiError::BadRequest(
+                "Either project_id or new_project_name must be provided".to_string(),
+            ));
+        }
+    };
+
+    // 2. Optionally create a git repo
+    let mut repo_id: Option<String> = None;
+    if payload.create_repo {
+        if let Some(repo_path) = &payload.repo_path {
+            let path = std::path::Path::new(repo_path);
+            let parent = path
+                .parent()
+                .ok_or_else(|| ApiError::BadRequest("Invalid repo_path".to_string()))?;
+            let folder = path
+                .file_name()
+                .ok_or_else(|| ApiError::BadRequest("Invalid repo_path".to_string()))?
+                .to_string_lossy()
+                .to_string();
+            let repo = deployment
+                .repo()
+                .init_repo(pool, deployment.git(), &parent.to_string_lossy(), &folder)
+                .await?;
+            repo_id = Some(repo.id.to_string());
+        }
+    }
+
+    // 3. Get first status column (Backlog)
+    let statuses = LocalProjectStatus::list(pool, project_id).await?;
+    let first_status = statuses
+        .project_statuses
+        .first()
+        .ok_or_else(|| ApiError::BadRequest("Project has no status columns".to_string()))?;
+
+    // 4. Create local issues for each plan item
+    let mut issue_ids = Vec::new();
+    for (i, item) in payload.items.iter().enumerate() {
+        let priority = parse_priority(item);
+        let description = build_issue_description(item);
+
+        let request = CreateIssueRequest {
+            id: Some(Uuid::new_v4()),
+            project_id,
+            status_id: first_status.id,
+            title: item.title.clone(),
+            description: Some(description),
+            priority,
+            start_date: None,
+            target_date: None,
+            completed_at: None,
+            sort_order: i as f64,
+            parent_issue_id: None,
+            parent_issue_sort_order: None,
+            extension_metadata: serde_json::json!({}),
+        };
+
+        let response = LocalIssue::create(pool, &request).await?;
+        issue_ids.push(response.data.id.to_string());
+    }
+
+    // NOTE: auto_create_workspaces and orchestrator spawning are handled
+    // by the MCP tools (start_workspace_session, get_workspace_status, etc.).
+    // The frontend UI can trigger workspace creation after push_plan returns.
+
+    Ok(ResponseJson(ApiResponse::success(PushPlanResponse {
+        project_id: project_id.to_string(),
+        issue_ids,
+        workspace_ids: vec![],
+        repo_id,
     })))
 }
 

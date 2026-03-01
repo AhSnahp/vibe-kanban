@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO local_project_statuses (id, project_id, name, color, sort_order)\n                   VALUES ($1, $2, $3, $4, $5)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "ca556ad11f66c8327a7fa2c673da48135bfc8e9e83292f90d210c62c1a403caf"
+}

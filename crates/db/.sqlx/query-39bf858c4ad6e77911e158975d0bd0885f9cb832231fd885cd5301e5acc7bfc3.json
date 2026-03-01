@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO local_issue_tags (id, issue_id, tag_id) VALUES ($1, $2, $3)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "39bf858c4ad6e77911e158975d0bd0885f9cb832231fd885cd5301e5acc7bfc3"
+}

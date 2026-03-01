@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO local_issue_counters (project_id, next_number) VALUES ($1, 1)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "2be1c4588e83b7ccb6279448074466797967d0bf403aaf4a2f38c291f565c908"
+}
