@@ -31,6 +31,11 @@ graph TB
         PR_MON["PrMonitorService<br/>PR tracking"]
         REPO["RepoService<br/>Repo registration"]
         REMOTE_CLIENT["RemoteClient<br/>Cloud API proxy"]
+        BRAINSTORM["BrainstormService<br/>Anthropic API planning"]
+    end
+
+    subgraph "External APIs"
+        ANTHROPIC["Anthropic API<br/>Claude Opus + Haiku"]
     end
 
     subgraph "Executors"
@@ -63,6 +68,9 @@ graph TB
     ROUTES --> FILESYSTEM
     ROUTES --> EVENTS
     ROUTES --> REMOTE_CLIENT
+    ROUTES --> BRAINSTORM
+    BRAINSTORM --> ANTHROPIC
+    BRAINSTORM --> SQLITE
     CONTAINER --> WORKTREE
     CONTAINER --> CLAUDE & AMP & CODEX & CURSOR & GEMINI & OPENCODE & QWEN & COPILOT & DROID
     CONTAINER --> SQLITE

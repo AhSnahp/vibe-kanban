@@ -147,6 +147,42 @@ erDiagram
         text created_at
         text updated_at
     }
+
+    BRAINSTORM_SESSION ||--o{ BRAINSTORM_MESSAGE : contains
+    BRAINSTORM_SESSION ||--o{ BRAINSTORM_CONTEXT : has
+
+    BRAINSTORM_SESSION {
+        text id PK
+        text title
+        text system_prompt
+        text project_id
+        text status
+        text created_at
+        text updated_at
+    }
+
+    BRAINSTORM_MESSAGE {
+        text id PK
+        text session_id FK
+        text role
+        text content
+        text thinking
+        text model
+        integer input_tokens
+        integer output_tokens
+        integer thinking_tokens
+        text created_at
+    }
+
+    BRAINSTORM_CONTEXT {
+        text id PK
+        text session_id FK
+        text context_type
+        text reference_id
+        text display_name
+        text content_snapshot
+        text created_at
+    }
 ```
 
 ## API Routes
@@ -247,6 +283,20 @@ erDiagram
 | `/api/config/agents/discovered-options/ws` | WS | Agent discovery stream |
 | `/api/scratch/{id}/stream/ws` | WS | Scratch data stream |
 | `/ws/terminal` | WS | PTY terminal session |
+| `/api/brainstorm/sessions/{id}/stream/ws` | WS | Brainstorm conversation stream |
+
+### Brainstorm (Planning Layer)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/brainstorm/status` | Check if Anthropic API key is configured |
+| GET/POST | `/api/brainstorm/sessions` | List/create brainstorm sessions |
+| GET/PUT/DELETE | `/api/brainstorm/sessions/{id}` | Session CRUD |
+| GET | `/api/brainstorm/sessions/{id}/stream/ws` | WebSocket: stream conversation (SSE from Anthropic) |
+| POST | `/api/brainstorm/sessions/{id}/context` | Add context (repo/file/project) |
+| DELETE | `/api/brainstorm/sessions/{id}/context/{ctx_id}` | Remove context |
+| POST | `/api/brainstorm/sessions/{id}/extract-plan` | Extract structured plan via tool_use |
+| POST | `/api/brainstorm/sessions/{id}/push-plan` | Push plan items as kanban issues |
 
 ### Other
 
@@ -305,6 +355,55 @@ sequenceDiagram
         SVC-->>RT: Issue record
         RT-->>FE: ApiResponse<Issue>
     end
+```
+
+## Brainstorm Flow
+
+```mermaid
+sequenceDiagram
+    participant FE as Frontend (React)
+    participant WS as WebSocket
+    participant RT as Axum Route
+    participant BS as BrainstormService
+    participant ANTH as Anthropic API
+    participant DB as SQLite
+    participant RC as RemoteClient
+
+    FE->>WS: Connect /brainstorm/sessions/{id}/stream/ws
+    FE->>WS: Send { message, budget_tokens }
+    WS->>BS: send_message()
+    BS->>DB: Save user message
+    BS->>BS: Check if session needs title
+    opt First message (no title)
+        BS-->>BS: tokio::spawn title generation
+        BS->>ANTH: Haiku: generate 3-6 word title
+        ANTH-->>BS: Title text
+        BS->>DB: Update session title
+    end
+    BS->>ANTH: Stream (Opus, extended thinking, tool_use)
+    loop SSE chunks
+        ANTH-->>BS: content_block_delta
+        BS-->>WS: TextDelta / ThinkingDelta
+        WS-->>FE: Real-time text
+    end
+    ANTH-->>BS: message_stop
+    BS->>DB: Save assistant message
+    BS-->>WS: MessageComplete
+    FE->>FE: Invalidate session queries (refresh sidebar title)
+
+    Note over FE,RC: User clicks "Extract Plan"
+    FE->>RT: POST /extract-plan
+    RT->>BS: extract_plan()
+    BS->>ANTH: Non-streaming Opus + tool_use
+    ANTH-->>BS: create_implementation_plan tool result
+    BS-->>RT: BrainstormPlan (structured JSON)
+    RT-->>FE: Plan review UI
+
+    Note over FE,RC: User clicks "Push Plan"
+    FE->>RT: POST /push-plan
+    RT->>RC: create_issue() per plan item
+    RC-->>RT: Issue IDs
+    RT-->>FE: PushPlanResponse
 ```
 
 ## Execution Process State Machine

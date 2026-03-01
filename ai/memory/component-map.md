@@ -53,6 +53,7 @@ graph TB
     APP --> WS_DETAIL["_app.workspaces_.$workspaceId.tsx<br/>Workspace detail"]
     APP --> WS_CREATE["_app.workspaces_.create.tsx"]
     APP --> PROJECT["_app.projects.$projectId.tsx<br/>Kanban board"]
+    APP --> BRAINSTORM["_app.brainstorm.tsx<br/>Brainstorm terminal"]
     APP --> MIGRATE["_app.migrate.tsx<br/>Migration flow"]
 
     PROJECT --> ISSUE["$projectId_.issues.$issueId.tsx<br/>Issue detail"]
@@ -74,8 +75,52 @@ graph TB
         WS_FEAT["workspace/<br/>useWorkspaceNotes, usePreviewDevServer"]
         WS_CHAT["workspace-chat/<br/>ConversationList, SessionChatBox,<br/>SessionSend, Approvals, Retry"]
         ONBOARD_F["onboarding/<br/>LandingPage, SignInPage"]
+        BRAINSTORM_F["brainstorm/<br/>BrainstormTerminal, Sidebar,<br/>Input, PlanReview, PushDialog"]
         MIGRATE_F["migration/<br/>MigrateLayout, 4 step containers"]
     end
+```
+
+## Brainstorm Feature
+
+```mermaid
+graph TB
+    subgraph "brainstorm/ui/"
+        BS_TERMINAL["BrainstormTerminal"]
+        BS_SIDEBAR["BrainstormSidebar<br/>Session list + context"]
+        BS_INPUT["BrainstormInput<br/>Message + Extract Plan + Thinking budget"]
+        BS_MSG_LIST["BrainstormMessageList"]
+        BS_MSG["BrainstormMessage"]
+        BS_THINKING["BrainstormThinking"]
+        BS_PLAN["BrainstormPlanReview<br/>Structured plan viewer"]
+        BS_PUSH["BrainstormPushDialog<br/>Push to kanban board"]
+        BS_CONTEXT["BrainstormContextPanel"]
+    end
+
+    subgraph "brainstorm/model/hooks/"
+        USE_BS_SESSIONS["useBrainstormSessions"]
+        USE_BS_SESSION["useBrainstormSession"]
+        USE_BS_SEND["useBrainstormSend<br/>WebSocket streaming"]
+        USE_BS_PLAN["useExtractPlan<br/>Non-streaming Opus"]
+        USE_BS_PUSH["usePushPlan<br/>Create kanban issues"]
+        USE_BS_STATUS["useBrainstormStatus"]
+    end
+
+    subgraph "brainstorm/model/stores/"
+        BS_STORE["useBrainstormStore<br/>Zustand"]
+    end
+
+    BS_TERMINAL --> BS_SIDEBAR
+    BS_TERMINAL --> BS_MSG_LIST
+    BS_TERMINAL --> BS_INPUT
+    BS_TERMINAL --> BS_PLAN
+    BS_MSG_LIST --> BS_MSG
+    BS_MSG_LIST --> BS_THINKING
+    BS_INPUT --> USE_BS_SEND
+    BS_INPUT --> USE_BS_PLAN
+    BS_PLAN --> BS_PUSH
+    BS_PUSH --> USE_BS_PUSH
+    USE_BS_SEND --> BS_STORE
+    USE_BS_PLAN --> BS_STORE
 ```
 
 ## Workspace-Chat Feature (Core)
@@ -123,6 +168,7 @@ graph TB
 | `useDiffViewStore` | mode (unified/split), ignoreWhitespace, wrapText | Yes |
 | `useExpandableStore` | expanded (key-value toggle) | No |
 | `useInspectModeStore` | inspect mode for workspace-chat | No |
+| `useBrainstormStore` | activeSessionId, isStreaming, streamingText, streamingThinking, extractedPlan, thinkingBudget | No |
 
 ## Key Hooks by Category
 
@@ -156,6 +202,13 @@ graph TB
 - `useTerminal()`, `useLogStream()`
 - `useOpenInEditor()`
 
+### Brainstorm
+- `useBrainstormSessions()`, `useBrainstormSession()` - session list/detail
+- `useBrainstormSend()` - WebSocket streaming to Opus
+- `useExtractPlan()` - non-streaming plan extraction via tool_use
+- `usePushPlan()` - push plan items as kanban issues
+- `useBrainstormStatus()` - check API key availability
+
 ### Forms & Config
 - `useCreateWorkspace()`, `useProjectWorkspaceCreateDraft()`
 - `useExecutorConfig()`, `usePresetOptions()`, `useProfiles()`
@@ -180,6 +233,7 @@ Organized by domain:
 - `queueApi` - Message queue
 - `migrationApi` - Data migration
 - `searchApi` - File search
+- `brainstormApi` - Brainstorm sessions, streaming, plan extraction, push-to-kanban
 
 ## Design System
 

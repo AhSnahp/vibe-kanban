@@ -1,17 +1,19 @@
+use api_types::{CreateIssueRequest, IssuePriority};
 use axum::{
     Json, Router,
     extract::{Path, State, ws::Message},
     response::{IntoResponse, Json as ResponseJson},
-    routing::{delete, get, post, put},
+    routing::{delete, get, post},
 };
 use db::models::brainstorm::{
     AddBrainstormContextRequest, BrainstormContext, BrainstormError, BrainstormMessage,
-    BrainstormPlan, BrainstormSendRequest, BrainstormSession, BrainstormSessionDetail,
-    BrainstormStatusResponse, BrainstormStreamEvent, CreateBrainstormSession, PushPlanRequest,
-    PushPlanResponse, UpdateBrainstormSession,
+    BrainstormPlan, BrainstormPlanItem, BrainstormSendRequest, BrainstormSession,
+    BrainstormSessionDetail, BrainstormStatusResponse, BrainstormStreamEvent,
+    CreateBrainstormSession, PushPlanRequest, PushPlanResponse, UpdateBrainstormSession,
 };
 use deployment::Deployment;
 use futures_util::StreamExt;
+use serde_json;
 use utils::response::ApiResponse;
 use uuid::Uuid;
 
@@ -210,18 +212,99 @@ pub async fn extract_plan(
 
 pub async fn push_plan(
     State(deployment): State<DeploymentImpl>,
-    Path(session_id): Path<Uuid>,
+    Path(_session_id): Path<Uuid>,
     Json(payload): Json<PushPlanRequest>,
 ) -> Result<ResponseJson<ApiResponse<PushPlanResponse>>, ApiError> {
-    // For now, return a placeholder - the actual implementation requires
-    // RemoteClient and more complex orchestration that depends on user's
-    // API key and project setup
-    let _ = session_id;
-    let _ = payload;
-    Err(ApiError::BadRequest(
-        "Push-to-kanban not yet implemented. Use the extracted plan to create issues manually."
-            .to_string(),
-    ))
+    let client = deployment.remote_client()?;
+
+    // Resolve project ID
+    let project_id = match (payload.project_id, payload.new_project_name) {
+        (Some(id), _) => Uuid::parse_str(&id)
+            .map_err(|_| ApiError::BadRequest("Invalid project_id".to_string()))?,
+        (None, Some(_name)) => {
+            return Err(ApiError::BadRequest(
+                "Creating new projects from brainstorm is not yet supported. Please select an existing project.".to_string(),
+            ));
+        }
+        (None, None) => {
+            return Err(ApiError::BadRequest(
+                "Either project_id or new_project_name must be provided".to_string(),
+            ));
+        }
+    };
+
+    // Get the first status column (e.g. "To Do") for the target project
+    let statuses = client.list_project_statuses(project_id).await?;
+    let first_status = statuses
+        .project_statuses
+        .first()
+        .ok_or_else(|| ApiError::BadRequest("Project has no status columns".to_string()))?;
+
+    // Create an issue for each plan item
+    let mut issue_ids = Vec::new();
+    for (i, item) in payload.items.iter().enumerate() {
+        let priority = parse_priority(item);
+        let description = build_issue_description(item);
+
+        let request = CreateIssueRequest {
+            id: Some(Uuid::new_v4()),
+            project_id,
+            status_id: first_status.id,
+            title: item.title.clone(),
+            description: Some(description),
+            priority,
+            start_date: None,
+            target_date: None,
+            completed_at: None,
+            sort_order: i as f64,
+            parent_issue_id: None,
+            parent_issue_sort_order: None,
+            extension_metadata: serde_json::json!({}),
+        };
+
+        let response = client.create_issue(&request).await?;
+        issue_ids.push(response.data.id.to_string());
+    }
+
+    Ok(ResponseJson(ApiResponse::success(PushPlanResponse {
+        project_id: project_id.to_string(),
+        issue_ids,
+        workspace_ids: vec![],
+        repo_id: None,
+    })))
+}
+
+fn parse_priority(item: &BrainstormPlanItem) -> Option<IssuePriority> {
+    item.priority
+        .as_deref()
+        .and_then(|p| match p.to_lowercase().as_str() {
+            "urgent" => Some(IssuePriority::Urgent),
+            "high" => Some(IssuePriority::High),
+            "medium" => Some(IssuePriority::Medium),
+            "low" => Some(IssuePriority::Low),
+            _ => None,
+        })
+}
+
+fn build_issue_description(item: &BrainstormPlanItem) -> String {
+    let mut desc = item.description.clone();
+
+    if let Some(effort) = &item.estimated_effort {
+        desc.push_str(&format!("\n\n**Estimated effort:** {}", effort));
+    }
+
+    if !item.dependencies.is_empty() {
+        desc.push_str("\n\n**Dependencies:**");
+        for dep in &item.dependencies {
+            desc.push_str(&format!("\n- {}", dep));
+        }
+    }
+
+    if !item.tags.is_empty() {
+        desc.push_str(&format!("\n\n**Tags:** {}", item.tags.join(", ")));
+    }
+
+    desc
 }
 
 // ── Error conversion ────────────────────────────────────────────────

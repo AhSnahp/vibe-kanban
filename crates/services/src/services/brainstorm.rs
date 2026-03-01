@@ -2,12 +2,13 @@ use std::env;
 
 use db::models::brainstorm::{
     BrainstormContext, BrainstormError, BrainstormMessage, BrainstormRole, BrainstormSession,
-    BrainstormStreamEvent,
+    BrainstormStreamEvent, UpdateBrainstormSession,
 };
 use futures::stream::{self, BoxStream};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
+use tracing::warn;
 use uuid::Uuid;
 
 #[derive(Clone)]
@@ -127,14 +128,32 @@ struct AnthropicNonStreamContent {
 
 // ── Default system prompt ───────────────────────────────────────────
 
-const DEFAULT_SYSTEM_PROMPT: &str = r#"You are a senior software architect and project planning specialist. Help the user brainstorm, design, and plan software projects through deep, challenging multi-round discussion.
+const DEFAULT_SYSTEM_PROMPT: &str = r#"You are a brainstorming and project planning assistant embedded in Vibe Kanban, a local kanban board tool for managing coding agents and software projects.
 
-Your approach:
-- Challenge assumptions and explore alternatives
-- Ask probing questions to refine requirements
+## Your Purpose
+The user is in the Brainstorm Terminal — a planning layer that sits on top of their kanban board. The goal of every brainstorm session is to go from a rough idea to a structured set of actionable tasks that will be pushed to the kanban board as cards. Each task will then be picked up by coding agents or worked manually.
+
+## How This Tool Works
+1. The user describes an idea, problem, or project
+2. You have a multi-round conversation to refine scope, challenge assumptions, and nail down requirements
+3. When the plan is mature, the user clicks "Extract Plan" which asks you to produce structured tasks
+4. Those tasks get pushed directly to a kanban project board as cards with titles, descriptions, priorities, and dependencies
+
+## Your Approach
+- Challenge assumptions and explore alternatives — push back when scope is too broad or requirements are vague
+- Ask probing questions to refine requirements, but stay focused on converging toward actionable tasks
 - Consider technical trade-offs explicitly
-- Build toward a concrete, actionable implementation plan
-- When the plan is mature, structure it as discrete tasks with clear scope"#;
+- Keep the end goal in mind: every conversation should move toward discrete, well-scoped tasks that a developer or coding agent can pick up and execute independently
+- When you sense the discussion is mature enough, proactively suggest it's time to extract a plan
+- Structure your thinking around task boundaries — what can be worked in parallel, what has dependencies, what's the critical path
+
+## Task Quality Guidelines
+Good kanban tasks from this tool should be:
+- Self-contained enough for a coding agent to execute without ambiguity
+- Scoped to roughly 1-4 hours of work each
+- Clear about inputs, outputs, and acceptance criteria
+- Tagged with priority (urgent/high/medium/low) and effort estimates
+- Ordered by dependencies — what must come first"#;
 
 impl BrainstormService {
     pub fn new() -> Self {
@@ -218,6 +237,29 @@ impl BrainstormService {
             None,
         )
         .await?;
+
+        // Auto-title: if this is the first message and session has no title,
+        // spawn a background task to generate one with Haiku.
+        if session.title.is_none() && messages.is_empty() {
+            let pool_clone = pool.clone();
+            let api_key_clone = api_key.clone();
+            let http_client_clone = self.http_client.clone();
+            let user_message_clone = user_message.to_string();
+
+            tokio::spawn(async move {
+                if let Err(e) = generate_session_title(
+                    &pool_clone,
+                    session_id,
+                    &user_message_clone,
+                    &api_key_clone,
+                    &http_client_clone,
+                )
+                .await
+                {
+                    warn!("Failed to auto-generate session title: {}", e);
+                }
+            });
+        }
 
         // Build API messages
         let system_prompt = Self::build_system_prompt(&session, &context_items);
@@ -666,6 +708,78 @@ impl BrainstormService {
             "No plan tool_use found in response".to_string(),
         ))
     }
+}
+
+// ── Auto-title generation ───────────────────────────────────────────
+
+async fn generate_session_title(
+    pool: &SqlitePool,
+    session_id: Uuid,
+    user_message: &str,
+    api_key: &str,
+    http_client: &Client,
+) -> Result<(), BrainstormError> {
+    // Truncate long messages to keep the title-generation prompt small
+    let truncated = if user_message.len() > 500 {
+        &user_message[..500]
+    } else {
+        user_message
+    };
+
+    let request_body = AnthropicRequest {
+        model: "claude-haiku-4-5-20251001".to_string(),
+        max_tokens: 30,
+        messages: vec![AnthropicMessage {
+            role: "user".to_string(),
+            content: format!(
+                "Generate a concise 3-6 word title for a brainstorming session that starts with this message. Return ONLY the title, nothing else.\n\n{}",
+                truncated
+            ),
+        }],
+        system: None,
+        stream: false,
+        thinking: None,
+        tools: None,
+    };
+
+    let response = http_client
+        .post("https://api.anthropic.com/v1/messages")
+        .header("x-api-key", api_key)
+        .header("anthropic-version", "2023-06-01")
+        .header("content-type", "application/json")
+        .json(&request_body)
+        .send()
+        .await
+        .map_err(|e| BrainstormError::AnthropicApi(e.to_string()))?;
+
+    if !response.status().is_success() {
+        return Err(BrainstormError::AnthropicApi(
+            "Title generation failed".into(),
+        ));
+    }
+
+    let api_response: AnthropicNonStreamResponse = response
+        .json()
+        .await
+        .map_err(|e| BrainstormError::AnthropicApi(e.to_string()))?;
+
+    if let Some(block) = api_response.content.first() {
+        if let Some(title) = &block.text {
+            let title = title.trim().trim_matches('"').to_string();
+            BrainstormSession::update(
+                pool,
+                session_id,
+                &UpdateBrainstormSession {
+                    title: Some(title),
+                    status: None,
+                    system_prompt: None,
+                },
+            )
+            .await?;
+        }
+    }
+
+    Ok(())
 }
 
 // ── SSE parsing helpers ─────────────────────────────────────────────

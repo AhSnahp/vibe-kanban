@@ -47,9 +47,13 @@ export function useBrainstormSend() {
             } else if (data.type === 'ThinkingDelta') {
               store.appendStreamingThinking(data.data.thinking);
             } else if (data.type === 'MessageComplete') {
-              // Invalidate queries to refresh message list
+              // Invalidate queries to refresh message list and session sidebar
+              // (sidebar needs refresh to pick up auto-generated titles)
               queryClient.invalidateQueries({
                 queryKey: brainstormKeys.session(sessionId),
+              });
+              queryClient.invalidateQueries({
+                queryKey: brainstormKeys.sessions(),
               });
               store.resetStreaming();
             } else if (data.type === 'Error') {
