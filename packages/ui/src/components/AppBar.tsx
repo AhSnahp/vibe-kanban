@@ -68,8 +68,8 @@ interface AppBarProps {
   userPopover?: ReactNode;
   starCount?: number | null;
   onlineCount?: number | null;
-  githubIconPath: string;
-  discordIconPath: string;
+  githubIconPath?: string;
+  discordIconPath?: string;
 }
 
 export interface AppBarProject {
@@ -383,30 +383,34 @@ export function AppBar({
         </Tooltip>
       )}
 
-      {/* Bottom section: User popover + GitHub + Discord */}
+      {/* Bottom section: User popover + optional social links */}
       <div className="mt-auto pt-base flex flex-col items-center gap-4">
         {userPopover}
-        <AppBarSocialLink
-          href="https://github.com/BloopAI/vibe-kanban"
-          label="Star on GitHub"
-          iconPath={githubIconPath}
-          badge={
-            starCount != null && (
-              <>
-                <StarIcon size={10} weight="fill" />
-                {formatStarCount(starCount)}
-              </>
-            )
-          }
-        />
-        <AppBarSocialLink
-          href="https://discord.gg/AC4nwVtJM3"
-          label="Join our Discord"
-          iconPath={discordIconPath}
-          badge={
-            onlineCount != null && (onlineCount > 999 ? '999+' : onlineCount)
-          }
-        />
+        {githubIconPath && (
+          <AppBarSocialLink
+            href="https://github.com/BloopAI/vibe-kanban"
+            label="Star on GitHub"
+            iconPath={githubIconPath}
+            badge={
+              starCount != null && (
+                <>
+                  <StarIcon size={10} weight="fill" />
+                  {formatStarCount(starCount)}
+                </>
+              )
+            }
+          />
+        )}
+        {discordIconPath && (
+          <AppBarSocialLink
+            href="https://discord.gg/AC4nwVtJM3"
+            label="Join our Discord"
+            iconPath={discordIconPath}
+            badge={
+              onlineCount != null && (onlineCount > 999 ? '999+' : onlineCount)
+            }
+          />
+        )}
       </div>
     </div>
   );

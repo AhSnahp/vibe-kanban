@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { DropResult } from '@hello-pangea/dnd';
 import { Outlet, useLocation, useNavigate } from '@tanstack/react-router';
-import { siDiscord, siGithub } from 'simple-icons';
 import {
   XIcon,
   PlusIcon,
@@ -21,8 +20,6 @@ import { AppBarUserPopoverContainer } from './AppBarUserPopoverContainer';
 import { useUserOrganizations } from '@/shared/hooks/useUserOrganizations';
 import { useOrganizationStore } from '@/shared/stores/useOrganizationStore';
 import { useAuth } from '@/shared/hooks/auth/useAuth';
-import { useDiscordOnlineCount } from '@/shared/hooks/useDiscordOnlineCount';
-import { useGitHubStars } from '@/shared/hooks/useGitHubStars';
 import {
   buildProjectRootPath,
   parseProjectSidebarRoute,
@@ -59,8 +56,6 @@ export function SharedAppLayout() {
   const isMobile = useIsMobile();
   const mobileFontScale = useUiPreferencesStore((s) => s.mobileFontScale);
   const { isSignedIn } = useAuth();
-  const { data: onlineCount } = useDiscordOnlineCount();
-  const { data: starCount } = useGitHubStars();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   // Register CMD+K shortcut globally for all routes under SharedAppLayout
@@ -326,10 +321,6 @@ export function SharedAppLayout() {
                 onCreateOrg={handleCreateOrg}
               />
             }
-            starCount={starCount}
-            onlineCount={onlineCount}
-            githubIconPath={siGithub.path}
-            discordIconPath={siDiscord.path}
           />
         )}
 

@@ -4,10 +4,7 @@ import { useUserSystem } from '@/shared/hooks/useUserSystem';
 import { getFirstProjectDestination } from '@/shared/lib/firstProjectDestination';
 import { useOrganizationStore } from '@/shared/stores/useOrganizationStore';
 import { resolveAppPath } from '@/shared/lib/routes/pathResolution';
-import {
-  toOnboarding,
-  toWorkspacesCreate,
-} from '@/shared/lib/routes/navigation';
+import { toWorkspacesCreate } from '@/shared/lib/routes/navigation';
 
 const DEFAULT_DESTINATION = '/workspaces/create';
 
@@ -24,12 +21,10 @@ export function RootRedirectPage() {
         return;
       }
 
-      if (!config.remote_onboarding_acknowledged) {
-        setDestination('/onboarding');
-        return;
-      }
-
-      if (loginStatus?.status !== 'loggedin') {
+      if (
+        !config.remote_onboarding_acknowledged ||
+        loginStatus?.status !== 'loggedin'
+      ) {
         setDestination(DEFAULT_DESTINATION);
         return;
       }
@@ -59,8 +54,7 @@ export function RootRedirectPage() {
   }
 
   const resolvedDestination =
-    resolveAppPath(destination) ??
-    (destination === '/onboarding' ? toOnboarding() : toWorkspacesCreate());
+    resolveAppPath(destination) ?? toWorkspacesCreate();
 
   return <Navigate {...resolvedDestination} replace />;
 }

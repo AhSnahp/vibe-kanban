@@ -14,7 +14,7 @@ export function LocalAuthProvider({ children }: LocalAuthProviderProps) {
 
   const value = useMemo<AuthContextValue>(
     () => ({
-      isSignedIn: loginStatus?.status === 'loggedin',
+      isSignedIn: true,
       isLoaded: loginStatus !== null,
       userId:
         loginStatus?.status === 'loggedin' ? loginStatus.profile.user_id : null,
