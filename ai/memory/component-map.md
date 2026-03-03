@@ -277,3 +277,43 @@ On-brand:   --text-on-brand
 **Icons**: StatusDot, PriorityIcon, PrBadge, RelationshipBadge, ToolStatusDot
 
 **Buttons**: Button, PrimaryButton, SplitButton, IconButton, IconButtonGroup
+
+## Command Center Package (`packages/command-center/`)
+
+### Routes
+- `/brainstorm` — Brainstorm terminal with "Create Workflow" action
+- `/workspaces` — Workspace list
+- `/workspaces/$workspaceId` — Workspace detail with conversation/diff/terminal tabs
+- `/projects/$projectId` — Kanban board with multi-select + bulk launch
+- `/multi?ids=ws1,ws2` — Multi-agent split-pane dashboard (2-4 workspaces)
+- `/workflows` — Workflow list
+- `/workflows/$workflowId` — Workflow dashboard with phase timeline + sanity check
+
+### Components
+- `WorkspaceTerminal` — xterm.js terminal wrapper using web-core's `XTermInstance`
+- `WorkspacePane` — Compact workspace view for multi-agent dashboard
+- `MultiAgentDashboard` — Split-pane view using `react-resizable-panels` (Group/Panel/Separator)
+- `BulkLaunchDialog` — Launch N agents in parallel with shared config
+- `SelectionBar` — Floating bar for multi-select kanban actions
+- `CreateWorkflowDialog` — Auto-phases tasks by dependency, creates workflow
+- `WorkflowDashboard` — Phase timeline + task cards + sanity check panel
+- `WorkflowListPage` — Lists workflows with status badges
+- `PhaseTimeline` — Horizontal stepper with status-colored phase dots
+- `SanityCheckPanel` — Review panel for phase completion (diffs + approve/abort)
+- `AggregateDiffView` — Combined diff view across multiple workspaces
+- `ShortcutsHelpDialog` — Keyboard shortcuts help modal
+
+### Stores
+- `useWorkspaceStore` — Zustand persisted: mode, maxIterations, defaultRepo, executor, runtimes (per-workspace state with issueId linking)
+- `useWorkflowStore` — Zustand persisted: workflows with phases/tasks, status transitions
+
+### Hooks
+- `use-bulk-launch` — Parallel workspace launch with progress tracking
+- `use-multi-agent` — Aggregate status + batch operations (stopAll, continueAll)
+- `use-workflow-runner` — Orchestrates workflow phases: launch → monitor → sanity check
+- `use-ordered-merge` — Sequential merge respecting dependency order
+- `use-cc-shortcuts` — Global keyboard shortcuts (m=mode, g+b/w/d/f=navigate, ?=help)
+- `use-notifications` — Browser Notification API on agent state transitions
+
+### Utilities
+- `plan-to-workflow.ts` — Topological sort on plan item dependencies → execution phases

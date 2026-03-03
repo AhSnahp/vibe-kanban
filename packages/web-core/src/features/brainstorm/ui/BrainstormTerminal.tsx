@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { useBrainstormStore } from '../model/stores/useBrainstormStore';
 import {
   useBrainstormSessions,
@@ -11,7 +11,15 @@ import { BrainstormMessageList } from './BrainstormMessageList';
 import { BrainstormInput } from './BrainstormInput';
 import { BrainstormPlanReview } from './BrainstormPlanReview';
 
-export function BrainstormTerminal() {
+interface BrainstormTerminalProps {
+  renderPlanExtraActions?: (
+    plan: import('shared/types').BrainstormPlan
+  ) => React.ReactNode;
+}
+
+export function BrainstormTerminal({
+  renderPlanExtraActions,
+}: BrainstormTerminalProps = {}) {
   const activeSessionId = useBrainstormStore((s) => s.activeSessionId);
   const setActiveSessionId = useBrainstormStore((s) => s.setActiveSessionId);
   const { data: sessions = [] } = useBrainstormSessions();
@@ -84,7 +92,12 @@ export function BrainstormTerminal() {
           </div>
         )}
       </div>
-      {activeSessionId && <BrainstormPlanReview sessionId={activeSessionId} />}
+      {activeSessionId && (
+        <BrainstormPlanReview
+          sessionId={activeSessionId}
+          renderExtraActions={renderPlanExtraActions}
+        />
+      )}
     </div>
   );
 }

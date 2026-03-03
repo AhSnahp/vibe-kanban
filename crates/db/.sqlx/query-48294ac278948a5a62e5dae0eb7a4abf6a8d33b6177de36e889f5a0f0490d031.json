@@ -1,0 +1,44 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT r.id AS \"id!: Uuid\",\n                      r.issue_id AS \"issue_id!: Uuid\",\n                      r.related_issue_id AS \"related_issue_id!: Uuid\",\n                      r.relationship_type,\n                      r.created_at AS \"created_at!: DateTime<Utc>\"\n               FROM local_issue_relationships r\n               JOIN local_issues i ON r.issue_id = i.id\n               WHERE i.project_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: Uuid",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "issue_id!: Uuid",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "related_issue_id!: Uuid",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "relationship_type",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "created_at!: DateTime<Utc>",
+        "ordinal": 4,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "48294ac278948a5a62e5dae0eb7a4abf6a8d33b6177de36e889f5a0f0490d031"
+}

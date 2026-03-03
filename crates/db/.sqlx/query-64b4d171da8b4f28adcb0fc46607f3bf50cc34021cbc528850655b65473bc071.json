@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT t.id AS \"id!: Uuid\",\n                      t.issue_id AS \"issue_id!: Uuid\",\n                      t.tag_id AS \"tag_id!: Uuid\"\n               FROM local_issue_tags t\n               JOIN local_issues i ON t.issue_id = i.id\n               WHERE i.project_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: Uuid",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "issue_id!: Uuid",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "tag_id!: Uuid",
+        "ordinal": 2,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "64b4d171da8b4f28adcb0fc46607f3bf50cc34021cbc528850655b65473bc071"
+}

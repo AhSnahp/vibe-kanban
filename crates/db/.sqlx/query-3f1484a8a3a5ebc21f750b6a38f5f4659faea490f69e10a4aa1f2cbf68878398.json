@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE local_project_statuses SET name = $2, color = $3, sort_order = $4, hidden = $5\n               WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "3f1484a8a3a5ebc21f750b6a38f5f4659faea490f69e10a4aa1f2cbf68878398"
+}

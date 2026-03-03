@@ -1,0 +1,133 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,100..700;1,100..700&family=IBM+Plex+Mono:ital,wght@0,100..700;1,100..700&family=Noto+Emoji:wght@300..700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+    --_background: 0 0% 95%;
+    --_foreground: 0 0% 5%;
+    --_primary: 0 0% 5%;
+    --_primary-foreground: 0 0% 100%;
+    --_secondary: 0 0% 95%;
+    --_secondary-foreground: 0 0% 16%;
+    --_muted: 0 0% 89%;
+    --_muted-foreground: 0 0% 56%;
+    --_accent: 0 0% 92%;
+    --_accent-foreground: 0 0% 5%;
+    --_destructive: 0 59% 57%;
+    --_destructive-foreground: 0 0% 100%;
+    --_border: 0 0% 85%;
+    --_input: 0 0% 96%;
+    --_ring: 0 0% 5%;
+    --_radius: 0.125rem;
+
+    --text-high: 0 0% 5%;
+    --text-normal: 0 0% 20%;
+    --text-low: 0 0% 39%;
+
+    --bg-primary: 0 0% 100%;
+    --bg-secondary: 0 0% 95%;
+    --bg-panel: 0 0% 89%;
+
+    --brand: 25 82% 54%;
+    --brand-hover: 25 75% 62%;
+    --brand-secondary: 25 82% 37%;
+    --error: 0 59% 57%;
+    --success: 117 38% 50%;
+    --merged: 271 81% 46%;
+
+    --text-on-brand: 0 0% 100%;
+  }
+
+  .dark {
+    color-scheme: dark;
+    --_background: 0 0% 13%;
+    --_foreground: 0 0% 96%;
+    --_primary: 240 4.8% 95.9%;
+    --_primary-foreground: 240 5.9% 10%;
+    --_secondary: 0 0% 12%;
+    --_secondary-foreground: 0 0% 77%;
+    --_muted: 0 0% 16%;
+    --_muted-foreground: 0 0% 64%;
+    --_accent: 0 0% 20%;
+    --_accent-foreground: 0 0% 96%;
+    --_destructive: 0 59% 57%;
+    --_destructive-foreground: 0 0% 96%;
+    --_border: 0 0% 20%;
+    --_input: 0 0% 20%;
+    --_ring: 0 0% 77%;
+
+    --text-high: 0 0% 96%;
+    --text-normal: 0 0% 77%;
+    --text-low: 0 0% 56%;
+
+    --bg-primary: 0 0% 13%;
+    --bg-secondary: 0 0% 11%;
+    --bg-panel: 0 0% 16%;
+
+    --brand: 25 82% 54%;
+    --brand-hover: 25 75% 62%;
+    --brand-secondary: 25 82% 37%;
+    --error: 0 59% 57%;
+    --success: 117 38% 50%;
+    --merged: 271 81% 66%;
+
+    --text-on-brand: 0 0% 100%;
+  }
+}
+
+@layer base {
+  :root {
+    --background: var(--_background);
+    --foreground: var(--_foreground);
+    --card: var(--_muted);
+    --card-foreground: var(--_muted-foreground);
+    --popover: var(--_background);
+    --popover-foreground: var(--_foreground);
+    --primary: var(--_primary);
+    --primary-foreground: var(--_primary-foreground);
+    --secondary: var(--_secondary);
+    --secondary-foreground: var(--_secondary-foreground);
+    --muted: var(--_muted);
+    --muted-foreground: var(--_muted-foreground);
+    --accent: var(--_accent);
+    --accent-foreground: var(--_accent-foreground);
+    --destructive: var(--_destructive);
+    --destructive-foreground: var(--_destructive-foreground);
+    --border: var(--_border);
+    --input: var(--_input);
+    --ring: var(--_ring);
+    --radius: var(--_radius);
+
+    --separator-border: hsl(var(--border));
+    --focus-border: hsl(var(--brand));
+  }
+}
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    @apply border-border;
+  }
+
+  html,
+  body,
+  #root {
+    @apply min-h-screen;
+    @apply font-normal;
+    @apply bg-background text-foreground font-ibm-plex-sans;
+  }
+
+  a,
+  button,
+  button * {
+    @apply transition-colors duration-200;
+    cursor: pointer;
+  }
+}
+
+@config '../../tailwind.new.config.js';

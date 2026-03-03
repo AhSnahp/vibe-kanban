@@ -42,11 +42,23 @@ if (
   );
 }
 
+const isLocalMode = !import.meta.env.VITE_VK_SHARED_API_BASE;
+
 configureAuthRuntime({
-  getToken: () => tokenManager.getToken(),
-  triggerRefresh: () => tokenManager.triggerRefresh(),
-  registerShape: (shape) => tokenManager.registerShape(shape),
-  getCurrentUser: () => oauthApi.getCurrentUser(),
+  getToken: isLocalMode
+    ? async () => 'local-mode'
+    : () => tokenManager.getToken(),
+  triggerRefresh: isLocalMode
+    ? async () => 'local-mode'
+    : () => tokenManager.triggerRefresh(),
+  registerShape: isLocalMode
+    ? () => () => {}
+    : (shape) => tokenManager.registerShape(shape),
+  getCurrentUser: isLocalMode
+    ? async () => ({
+        user_id: '00000000-0000-0000-0000-000000000000',
+      })
+    : () => oauthApi.getCurrentUser(),
 });
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

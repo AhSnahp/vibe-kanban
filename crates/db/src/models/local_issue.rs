@@ -1,9 +1,10 @@
 use api_types::{
-    CreateIssueRelationshipRequest, CreateIssueRequest, CreateIssueTagRequest, Issue,
-    IssuePriority, IssueRelationship, IssueRelationshipType, IssueTag,
-    ListIssueRelationshipsResponse, ListIssueTagsResponse, ListIssuesResponse,
-    ListProjectStatusesResponse, ListProjectsResponse, MutationResponse, Project, ProjectStatus,
-    UpdateIssueRequest,
+    CreateIssueRelationshipRequest, CreateIssueRequest, CreateIssueTagRequest,
+    CreateProjectStatusRequest, CreateTagRequest, Issue, IssuePriority, IssueRelationship,
+    IssueRelationshipType, IssueTag, ListIssueRelationshipsResponse, ListIssueTagsResponse,
+    ListIssuesResponse, ListProjectStatusesResponse, ListProjectsResponse, MutationResponse,
+    Project, ProjectStatus, Tag, UpdateIssueRequest, UpdateProjectRequest,
+    UpdateProjectStatusRequest,
 };
 use chrono::{DateTime, Utc};
 use serde_json::Value;
@@ -279,6 +280,41 @@ impl LocalProject {
         let project = Self::get(pool, project_id).await?;
         Ok((project, statuses))
     }
+
+    pub async fn update(
+        pool: &SqlitePool,
+        id: Uuid,
+        request: &UpdateProjectRequest,
+    ) -> Result<Project, LocalKanbanError> {
+        let existing = Self::get(pool, id).await?;
+        let name = request.name.as_deref().unwrap_or(&existing.name);
+        let color = request.color.as_deref().unwrap_or(&existing.color);
+        let sort_order = request.sort_order.unwrap_or(existing.sort_order);
+
+        sqlx::query!(
+            r#"UPDATE local_projects SET name = $2, color = $3, sort_order = $4,
+               updated_at = datetime('now', 'subsec')
+               WHERE id = $1"#,
+            id,
+            name,
+            color,
+            sort_order,
+        )
+        .execute(pool)
+        .await?;
+
+        Self::get(pool, id).await
+    }
+
+    pub async fn delete(pool: &SqlitePool, id: Uuid) -> Result<(), LocalKanbanError> {
+        let result = sqlx::query!("DELETE FROM local_projects WHERE id = $1", id)
+            .execute(pool)
+            .await?;
+        if result.rows_affected() == 0 {
+            return Err(LocalKanbanError::ProjectNotFound);
+        }
+        Ok(())
+    }
 }
 
 // ── Project Status CRUD ─────────────────────────────────────────────
@@ -308,6 +344,144 @@ impl LocalProjectStatus {
 
         Ok(ListProjectStatusesResponse {
             project_statuses: rows.into_iter().map(|r| r.into_api_status()).collect(),
+        })
+    }
+
+    pub async fn get(pool: &SqlitePool, id: Uuid) -> Result<ProjectStatus, LocalKanbanError> {
+        let row = sqlx::query_as!(
+            LocalProjectStatusRow,
+            r#"SELECT id AS "id!: Uuid",
+                      project_id AS "project_id!: Uuid",
+                      name, color,
+                      sort_order AS "sort_order!: i32",
+                      hidden AS "hidden!: bool",
+                      created_at AS "created_at!: DateTime<Utc>"
+               FROM local_project_statuses WHERE id = $1"#,
+            id
+        )
+        .fetch_optional(pool)
+        .await?
+        .ok_or(LocalKanbanError::StatusNotFound)?;
+
+        Ok(row.into_api_status())
+    }
+
+    pub async fn create(
+        pool: &SqlitePool,
+        request: &CreateProjectStatusRequest,
+    ) -> Result<MutationResponse<ProjectStatus>, LocalKanbanError> {
+        let id = request.id.unwrap_or_else(Uuid::new_v4);
+        sqlx::query!(
+            r#"INSERT INTO local_project_statuses (id, project_id, name, color, sort_order, hidden)
+               VALUES ($1, $2, $3, $4, $5, $6)"#,
+            id,
+            request.project_id,
+            request.name,
+            request.color,
+            request.sort_order,
+            request.hidden,
+        )
+        .execute(pool)
+        .await?;
+
+        let status = Self::get(pool, id).await?;
+        Ok(MutationResponse {
+            data: status,
+            txid: 0,
+        })
+    }
+
+    pub async fn update(
+        pool: &SqlitePool,
+        id: Uuid,
+        request: &UpdateProjectStatusRequest,
+    ) -> Result<ProjectStatus, LocalKanbanError> {
+        let existing = Self::get(pool, id).await?;
+        let name = request.name.as_deref().unwrap_or(&existing.name);
+        let color = request.color.as_deref().unwrap_or(&existing.color);
+        let sort_order = request.sort_order.unwrap_or(existing.sort_order);
+        let hidden = request.hidden.unwrap_or(existing.hidden);
+
+        sqlx::query!(
+            r#"UPDATE local_project_statuses SET name = $2, color = $3, sort_order = $4, hidden = $5
+               WHERE id = $1"#,
+            id,
+            name,
+            color,
+            sort_order,
+            hidden,
+        )
+        .execute(pool)
+        .await?;
+
+        Self::get(pool, id).await
+    }
+}
+
+// ── Tag CRUD ────────────────────────────────────────────────────────
+
+pub struct LocalTag;
+
+#[derive(Debug, Clone, FromRow)]
+struct LocalTagRow {
+    pub id: Uuid,
+    pub project_id: Uuid,
+    pub name: String,
+    pub color: String,
+}
+
+impl LocalTagRow {
+    fn into_api_tag(self) -> Tag {
+        Tag {
+            id: self.id,
+            project_id: self.project_id,
+            name: self.name,
+            color: self.color,
+        }
+    }
+}
+
+impl LocalTag {
+    pub async fn list(pool: &SqlitePool, project_id: Uuid) -> Result<Vec<Tag>, LocalKanbanError> {
+        let rows = sqlx::query_as!(
+            LocalTagRow,
+            r#"SELECT id AS "id!: Uuid",
+                      project_id AS "project_id!: Uuid",
+                      name, color
+               FROM local_tags
+               WHERE project_id = $1
+               ORDER BY name ASC"#,
+            project_id
+        )
+        .fetch_all(pool)
+        .await?;
+
+        Ok(rows.into_iter().map(|r| r.into_api_tag()).collect())
+    }
+
+    pub async fn create(
+        pool: &SqlitePool,
+        request: &CreateTagRequest,
+    ) -> Result<MutationResponse<Tag>, LocalKanbanError> {
+        let id = request.id.unwrap_or_else(Uuid::new_v4);
+        sqlx::query!(
+            r#"INSERT INTO local_tags (id, project_id, name, color) VALUES ($1, $2, $3, $4)"#,
+            id,
+            request.project_id,
+            request.name,
+            request.color,
+        )
+        .execute(pool)
+        .await?;
+
+        Ok(MutationResponse {
+            data: Tag {
+                id,
+                project_id: request.project_id,
+                name: request.name.clone(),
+                color: request.color.clone(),
+            },
+            txid: 0,
         })
     }
 }
@@ -589,6 +763,26 @@ impl LocalIssueTag {
         })
     }
 
+    pub async fn find_by_project(
+        pool: &SqlitePool,
+        project_id: Uuid,
+    ) -> Result<Vec<IssueTag>, LocalKanbanError> {
+        let rows = sqlx::query_as!(
+            LocalIssueTagRow,
+            r#"SELECT t.id AS "id!: Uuid",
+                      t.issue_id AS "issue_id!: Uuid",
+                      t.tag_id AS "tag_id!: Uuid"
+               FROM local_issue_tags t
+               JOIN local_issues i ON t.issue_id = i.id
+               WHERE i.project_id = $1"#,
+            project_id
+        )
+        .fetch_all(pool)
+        .await?;
+
+        Ok(rows.into_iter().map(|r| r.into_api_tag()).collect())
+    }
+
     pub async fn get(pool: &SqlitePool, id: Uuid) -> Result<IssueTag, LocalKanbanError> {
         let row = sqlx::query_as!(
             LocalIssueTagRow,
@@ -659,6 +853,31 @@ impl LocalIssueRelationship {
                 .filter_map(|r| r.into_api_relationship())
                 .collect(),
         })
+    }
+
+    pub async fn find_by_project(
+        pool: &SqlitePool,
+        project_id: Uuid,
+    ) -> Result<Vec<IssueRelationship>, LocalKanbanError> {
+        let rows = sqlx::query_as!(
+            LocalIssueRelationshipRow,
+            r#"SELECT r.id AS "id!: Uuid",
+                      r.issue_id AS "issue_id!: Uuid",
+                      r.related_issue_id AS "related_issue_id!: Uuid",
+                      r.relationship_type,
+                      r.created_at AS "created_at!: DateTime<Utc>"
+               FROM local_issue_relationships r
+               JOIN local_issues i ON r.issue_id = i.id
+               WHERE i.project_id = $1"#,
+            project_id
+        )
+        .fetch_all(pool)
+        .await?;
+
+        Ok(rows
+            .into_iter()
+            .filter_map(|r| r.into_api_relationship())
+            .collect())
     }
 
     pub async fn create(

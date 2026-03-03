@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from '@tanstack/react-router';
 import { XIcon, TrashIcon, PlusIcon } from '@phosphor-icons/react';
 import type { BrainstormPlan, BrainstormPlanItem } from 'shared/types';
 import { useBrainstormStore } from '../model/stores/useBrainstormStore';
@@ -7,6 +8,7 @@ import { cn } from '@/shared/lib/utils';
 
 interface BrainstormPlanReviewProps {
   sessionId: string;
+  renderExtraActions?: (plan: BrainstormPlan) => React.ReactNode;
 }
 
 const PRIORITIES = ['low', 'medium', 'high', 'urgent'] as const;
@@ -26,7 +28,11 @@ function priorityColor(priority: string | null): string {
   }
 }
 
-export function BrainstormPlanReview({ sessionId }: BrainstormPlanReviewProps) {
+export function BrainstormPlanReview({
+  sessionId,
+  renderExtraActions,
+}: BrainstormPlanReviewProps) {
+  const navigate = useNavigate();
   const isPlanReviewOpen = useBrainstormStore((s) => s.isPlanReviewOpen);
   const extractedPlan = useBrainstormStore((s) => s.extractedPlan);
   const setIsPlanReviewOpen = useBrainstormStore((s) => s.setIsPlanReviewOpen);
@@ -76,18 +82,27 @@ export function BrainstormPlanReview({ sessionId }: BrainstormPlanReviewProps) {
     setEditedPlan({ ...plan, items: [...plan.items, newItem] });
   }, [plan]);
 
-  const handleClose = useCallback(() => {
-    setIsPlanReviewOpen(false);
-    setEditedPlan(null);
-    setExtractedPlan(null);
-  }, [setIsPlanReviewOpen, setExtractedPlan]);
+  const handleClose = useCallback(
+    (projectId?: string) => {
+      setIsPlanReviewOpen(false);
+      setEditedPlan(null);
+      setExtractedPlan(null);
+      if (projectId) {
+        navigate({ to: '/projects/$projectId', params: { projectId } });
+      }
+    },
+    [setIsPlanReviewOpen, setExtractedPlan, navigate]
+  );
 
   if (!isPlanReviewOpen || !plan) return null;
 
   return (
     <>
       {/* Overlay */}
-      <div className="fixed inset-0 bg-black/50 z-40" onClick={handleClose} />
+      <div
+        className="fixed inset-0 bg-black/50 z-40"
+        onClick={() => handleClose()}
+      />
 
       {/* Slide-over panel */}
       <div className="fixed right-0 top-0 bottom-0 w-full max-w-lg bg-primary border-l border-border z-50 flex flex-col">
@@ -95,7 +110,7 @@ export function BrainstormPlanReview({ sessionId }: BrainstormPlanReviewProps) {
         <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
           <h2 className="text-base font-semibold text-high">Review Plan</h2>
           <button
-            onClick={handleClose}
+            onClick={() => handleClose()}
             className="p-1 rounded hover:bg-secondary text-low hover:text-high cursor-pointer"
           >
             <XIcon className="h-5 w-5" />
@@ -200,11 +215,12 @@ export function BrainstormPlanReview({ sessionId }: BrainstormPlanReviewProps) {
           </span>
           <div className="flex gap-2">
             <button
-              onClick={handleClose}
+              onClick={() => handleClose()}
               className="px-3 py-1.5 text-sm rounded border border-border text-normal hover:text-high hover:bg-secondary cursor-pointer"
             >
               Cancel
             </button>
+            {renderExtraActions?.(plan)}
             <button
               onClick={() => setIsPushDialogOpen(true)}
               disabled={plan.items.length === 0}

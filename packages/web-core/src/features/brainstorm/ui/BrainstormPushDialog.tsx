@@ -7,7 +7,7 @@ interface BrainstormPushDialogProps {
   sessionId: string;
   plan: BrainstormPlan;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (projectId: string) => void;
 }
 
 export function BrainstormPushDialog({
@@ -26,7 +26,7 @@ export function BrainstormPushDialog({
   const handlePush = useCallback(async () => {
     setError(null);
     try {
-      await pushPlan.mutateAsync({
+      const result = await pushPlan.mutateAsync({
         sessionId,
         project_id: useExisting ? projectId : null,
         new_project_name: useExisting ? null : newProjectName,
@@ -36,7 +36,7 @@ export function BrainstormPushDialog({
         auto_create_workspaces: autoCreateWorkspaces,
         repo_ids: [],
       });
-      onSuccess();
+      onSuccess(result.project_id);
     } catch (e) {
       const msg =
         e instanceof Error ? e.message : 'Failed to push plan to board';

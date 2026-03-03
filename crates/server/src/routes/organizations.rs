@@ -2,8 +2,9 @@ use api_types::{
     AcceptInvitationResponse, CreateInvitationRequest, CreateInvitationResponse,
     CreateOrganizationRequest, CreateOrganizationResponse, GetInvitationResponse,
     GetOrganizationResponse, ListInvitationsResponse, ListMembersResponse,
-    ListOrganizationsResponse, Organization, RevokeInvitationRequest, UpdateMemberRoleRequest,
-    UpdateMemberRoleResponse, UpdateOrganizationRequest,
+    ListOrganizationsResponse, MemberRole, Organization, OrganizationWithRole,
+    RevokeInvitationRequest, UpdateMemberRoleRequest, UpdateMemberRoleResponse,
+    UpdateOrganizationRequest,
 };
 use axum::{
     Router,
@@ -50,11 +51,30 @@ pub fn router() -> Router<DeploymentImpl> {
 async fn list_organizations(
     State(deployment): State<DeploymentImpl>,
 ) -> Result<ResponseJson<ApiResponse<ListOrganizationsResponse>>, ApiError> {
-    let client = deployment.remote_client()?;
-
-    let response = client.list_organizations().await?;
-
-    Ok(ResponseJson(ApiResponse::success(response)))
+    match deployment.remote_client() {
+        Ok(client) => {
+            let response = client.list_organizations().await?;
+            Ok(ResponseJson(ApiResponse::success(response)))
+        }
+        Err(_) => {
+            let now = chrono::Utc::now();
+            let org = OrganizationWithRole {
+                id: Uuid::nil(),
+                name: "Local".to_string(),
+                slug: "local".to_string(),
+                is_personal: true,
+                issue_prefix: "LOCAL".to_string(),
+                created_at: now,
+                updated_at: now,
+                user_role: MemberRole::Admin,
+            };
+            Ok(ResponseJson(ApiResponse::success(
+                ListOrganizationsResponse {
+                    organizations: vec![org],
+                },
+            )))
+        }
+    }
 }
 
 async fn get_organization(

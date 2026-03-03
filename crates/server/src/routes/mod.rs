@@ -30,6 +30,8 @@ pub mod sessions;
 pub mod tags;
 pub mod task_attempts;
 pub mod terminal;
+pub mod v1_fallback;
+pub mod v1_mutations;
 
 pub fn router(deployment: DeploymentImpl) -> IntoMakeService<Router> {
     let relay_signed_routes = Router::new()
@@ -69,11 +71,21 @@ pub fn router(deployment: DeploymentImpl) -> IntoMakeService<Router> {
         .layer(ValidateRequestHeaderLayer::custom(
             middleware::validate_origin,
         ))
+        .with_state(deployment.clone());
+
+    let v1_routes = Router::new()
+        .nest("/fallback", v1_fallback::router())
+        .merge(v1_mutations::router())
+        .route("/organizations", get(v1_fallback::fallback_organizations))
+        .layer(ValidateRequestHeaderLayer::custom(
+            middleware::validate_origin,
+        ))
         .with_state(deployment);
 
     Router::new()
         .route("/", get(frontend::serve_frontend_root))
         .route("/{*path}", get(frontend::serve_frontend))
         .nest("/api", api_routes)
+        .nest("/v1", v1_routes)
         .into_make_service()
 }
