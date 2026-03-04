@@ -123,10 +123,18 @@ impl ExecutionEnv {
         }
     }
 
-    /// Apply all environment variables to a Command
+    /// Sensitive keys that must NEVER leak to child agent processes.
+    /// The brainstorm service reads these from its own field, not from env inheritance.
+    const BLOCKED_ENV_KEYS: &[&str] = &["ANTHROPIC_API_KEY"];
+
+    /// Apply all environment variables to a Command, stripping sensitive keys
+    /// that could cause unintended billing if inherited by agent processes.
     pub fn apply_to_command(&self, command: &mut Command) {
         for (key, value) in &self.vars {
             command.env(key, value);
+        }
+        for key in Self::BLOCKED_ENV_KEYS {
+            command.env_remove(key);
         }
     }
 
@@ -158,5 +166,38 @@ mod tests {
         assert_eq!(merged.vars.get("VK_PROJECT_NAME").unwrap(), "runtime");
         assert_eq!(merged.vars.get("FOO").unwrap(), "profile"); // overrides
         assert_eq!(merged.vars.get("BAR").unwrap(), "profile");
+    }
+
+    #[tokio::test]
+    async fn blocked_env_keys_stripped_from_child() {
+        // Simulate: server process has ANTHROPIC_API_KEY set
+        unsafe { std::env::set_var("ANTHROPIC_API_KEY", "sk-ant-test-key-12345") };
+
+        let env = ExecutionEnv::new(RepoContext::default(), false, String::new());
+
+        // Use a cross-platform command that prints the env var
+        let mut command = if cfg!(windows) {
+            let mut c = Command::new("cmd");
+            c.args(["/C", "echo %ANTHROPIC_API_KEY%"]);
+            c
+        } else {
+            let mut c = Command::new("sh");
+            c.args(["-c", "echo $ANTHROPIC_API_KEY"]);
+            c
+        };
+
+        env.apply_to_command(&mut command);
+
+        let output = command.output().await.expect("failed to run child");
+        let stdout = String::from_utf8_lossy(&output.stdout);
+
+        assert!(
+            !stdout.contains("sk-ant-test"),
+            "ANTHROPIC_API_KEY leaked to child process! Got: {}",
+            stdout.trim()
+        );
+
+        // Clean up
+        unsafe { std::env::remove_var("ANTHROPIC_API_KEY") };
     }
 }

@@ -93,6 +93,15 @@ Each workspace gets an isolated git worktree with its own branch. The `crates/gi
 
 Architecture documentation lives in `ai/memory/`. These files are auto-loaded at session start by the ai-memory plugin. Update them when the architecture changes.
 
+## API Key Billing Safety
+
+**CRITICAL**: `ANTHROPIC_API_KEY` is used ONLY by the brainstorm service (`crates/services/src/services/brainstorm.rs`) for direct Anthropic API calls. It must NEVER be passed to spawned agent processes.
+
+- `ExecutionEnv::apply_to_command()` in `crates/executors/src/env.rs` strips `ANTHROPIC_API_KEY` from all child processes via `BLOCKED_ENV_KEYS`
+- If you add a new executor or spawn point, you MUST go through `ExecutionEnv::apply_to_command()` — never call `command.spawn()` with raw env inheritance
+- If you need to add a new sensitive key, add it to `BLOCKED_ENV_KEYS` in `env.rs`
+- The brainstorm service reads the API key from its own `api_key` field (set at construction from `env::var`), NOT from child process inheritance
+
 ## Key Patterns
 
 - **Error handling**: Custom error enums with `#[derive(Error, Debug)]`. Production errors go to Sentry. API responses wrapped in `ApiResponse<T>`

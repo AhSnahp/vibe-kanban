@@ -600,11 +600,10 @@ impl ClaudeCode {
             .with_profile(&self.cmd)
             .apply_to_command(&mut command);
 
-        // Remove ANTHROPIC_API_KEY if disable_api_key is enabled
-        if self.disable_api_key.unwrap_or(false) {
-            command.env_remove("ANTHROPIC_API_KEY");
-            tracing::info!("ANTHROPIC_API_KEY removed from environment");
-        }
+        // Prevent nested-session detection when the server itself runs inside Claude Code
+        command.env_remove("CLAUDECODE");
+
+        // ANTHROPIC_API_KEY stripping is now centralized in ExecutionEnv::apply_to_command()
 
         let mut child = command.group_spawn()?;
         let child_stdout = child.inner().stdout.take().ok_or_else(|| {

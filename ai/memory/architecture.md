@@ -169,3 +169,4 @@ graph LR
 - **Types**: Rust is source of truth. Never edit `shared/types.ts` directly. Use `pnpm run generate-types`
 - **DB**: `pnpm run prepare-db` after query changes (SQLx offline mode)
 - **QA**: `--features qa-mode` for mock executor testing
+- **API Key isolation**: `ANTHROPIC_API_KEY` is stripped from all child processes in `ExecutionEnv::apply_to_command()`. Brainstorm reads it at startup; agents must use their own auth (subscription or user-provided keys).

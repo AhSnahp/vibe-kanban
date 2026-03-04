@@ -46,6 +46,13 @@ async fn main() -> Result<(), VibeKanbanError> {
         .with(sentry_layer())
         .init();
 
+    if std::env::var("ANTHROPIC_API_KEY").is_ok() {
+        tracing::warn!(
+            "ANTHROPIC_API_KEY is set in the server environment. \
+             It will be used for brainstorm API calls but is BLOCKED from leaking to agent processes."
+        );
+    }
+
     // Create asset directory if it doesn't exist
     if !asset_dir().exists() {
         std::fs::create_dir_all(asset_dir())?;
